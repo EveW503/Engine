@@ -2,18 +2,33 @@
 #include <cstdio>
 #include <cmath>
 
-// 简单的颜色定义
-#define COLOR_BG BLACK
-#define COLOR_TEXT WHITE
-#define COLOR_GAUGE_BG RGB(50, 50, 50)
-#define COLOR_GAUGE_FILL GREEN
-#define COLOR_BTN_START RGB(0, 100, 200)
-#define COLOR_BTN_STOP RGB(200, 50, 50)
+// --- 配色方案 (EICAS 风格) ---
+#define COLOR_BG           RGB(30, 30, 35)       // 全局深色背景
+#define COLOR_PANEL_BG     RGB(50, 50, 55)       // 仪表背景灰
+#define COLOR_TEXT         RGB(220, 220, 220)    // 浅灰文字
+#define COLOR_TEXT_HL      RGB(0, 255, 255)      // 高亮文字(青色)
+#define COLOR_GAUGE_FILL   RGB(0, 200, 0)        // 仪表填充绿
+#define COLOR_GAUGE_WARN   RGB(200, 150, 0)      // 仪表警告橙
+#define COLOR_BTN_START    RGB(0, 120, 60)       // 启动绿
+#define COLOR_BTN_STOP     RGB(180, 40, 40)      // 停止红
+#define COLOR_BTN_INC      RGB(0, 100, 150)      // 加推力蓝
+#define COLOR_BTN_DEC      RGB(150, 100, 0)      // 减推力橙
+
+const double PI = 3.1415926535;
 
 UI::UI() {
-    // 定义按钮位置
-    btnStartRect = { 300, 500, 420, 550 }; // Left, Top, Right, Bottom
-    btnStopRect = { 450, 500, 570, 550 };
+    // 布局优化：将按钮集中在底部中央，形成控制面板
+    // 按钮尺寸 120x50，间隔 20
+    int centerX = 512;
+    int startY = 600;
+
+    // 左侧：推力控制
+    btnIncRect = { centerX - 130, startY, centerX - 10, startY + 50 };
+    btnDecRect = { centerX - 130, startY + 60, centerX - 10, startY + 110 };
+
+    // 右侧：启停控制
+    btnStartRect = { centerX + 10, startY, centerX + 130, startY + 50 };
+    btnStopRect = { centerX + 10, startY + 60, centerX + 130, startY + 110 };
 }
 
 UI::~UI() {
@@ -21,115 +36,157 @@ UI::~UI() {
 }
 
 void UI::init() {
-    initgraph(1024, 768); // 创建窗口
-    setbkmode(TRANSPARENT); // 文字背景透明
+    initgraph(1024, 768);
+    setbkmode(TRANSPARENT);
 }
 
-// 辅助函数：将角度转为弧度
-const double PI = 3.1415926535;
-
+// 优化的仪表盘：270度扫描 (左下 135度 -> 右下 405度)
 void UI::drawGauge(int x, int y, int radius, double val, double maxVal, const std::wstring& label) {
-    // 1. 画背景扇形 (0 ~ 210度)
-    // EasyX 的 pie 函数参数是：left, top, right, bottom, startAngle, endAngle
-    // 这里的角度是弧度制。0度是3点钟方向，顺时针为负（EasyX坐标系问题需注意，通常逆时针为正）
-    // 为了简单，我们用 solidpie 画一个灰色的底
-    setfillcolor(COLOR_GAUGE_BG);
-    solidpie(x - radius, y - radius, x + radius, y + radius, 0, 210 * PI / 180);
+    // EasyX 角度：0=东, 90=南, 180=西. 顺时针增加.
+    // 我们希望从 "西南(135度)" 转到 "东南(45度)"，跨度 270度
+    double startRad = 135 * PI / 180.0;
+    double sweepRad = 270 * PI / 180.0;
 
-    // 2. 画动态数据扇形
-    // 计算当前值对应的角度
-    double percentage = val / maxVal;
-    if (percentage > 1.0) percentage = 1.0;
-    if (percentage < 0.0) percentage = 0.0;
+    // 1. 画仪表盘底色 (深灰扇形)
+    setfillcolor(COLOR_PANEL_BG);
+    solidpie(x - radius, y - radius, x + radius, y + radius, startRad, startRad + sweepRad);
 
-    double angle = percentage * 210.0; // 0 ~ 210
+    // 2. 画动态数据 (绿色扇形)
+    double ratio = val / maxVal;
+    if (ratio < 0) ratio = 0;
+    if (ratio > 1) ratio = 1;
 
-    setfillcolor(COLOR_GAUGE_FILL);
-    // 注意：EasyX 的角度起始也是弧度。
-    solidpie(x - radius, y - radius, x + radius, y + radius, 0, angle * PI / 180);
+    // 警告色逻辑：超过 95% 变橙色
+    if (ratio > 0.95) setfillcolor(COLOR_GAUGE_WARN);
+    else setfillcolor(COLOR_GAUGE_FILL);
 
-    // 3. 显示文字数值
-    TCHAR valStr[32];
-    _stprintf_s(valStr, _T("%.0f"), val);
+    solidpie(x - radius, y - radius, x + radius, y + radius, startRad, startRad + (sweepRad * ratio));
+
+    // 3. 画中心遮罩 (做成圆环效果，看起来更高级)
+    int innerR = radius * 0.7;
+    setfillcolor(COLOR_BG);
+    solidpie(x - innerR, y - innerR, x + innerR, y + innerR, 0, 2 * PI);
+
+    // 4. 显示数值和标签
+    TCHAR str[32];
+    settextcolor(COLOR_TEXT_HL);
+    settextstyle(24, 0, _T("Consolas")); // 加大字体
+
+    _stprintf_s(str, _T("%.0f"), val);
+
+    // 居中计算
+    int w = textwidth(str);
+    outtextxy(x - w / 2, y - 10, str);
 
     settextcolor(COLOR_TEXT);
-    settextstyle(20, 0, _T("Consolas"));
-    outtextxy(x - 20, y + radius + 10, valStr);
-    outtextxy(x - 20, y - 20, label.c_str());
+    settextstyle(18, 0, _T("微软雅黑"));
+    w = textwidth(label.c_str());
+    outtextxy(x - w / 2, y + 20, label.c_str());
 }
 
-void UI::drawButton(int x, int y, int w, int h, const std::wstring& text, COLORREF color) {
+// 绘制带边框的按钮
+void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hoverColor) {
     setfillcolor(color);
-    fillrectangle(x, y, x + w, y + h);
+    setlinecolor(WHITE);
+    setlinestyle(PS_SOLID, 2);
+
+    fillrectangle(r.left, r.top, r.right, r.bottom);
+    rectangle(r.left, r.top, r.right, r.bottom);
 
     settextcolor(WHITE);
-    settextstyle(25, 0, _T("微软雅黑"));
-    // 简单居中
-    outtextxy(x + 10, y + 10, text.c_str());
+    settextstyle(20, 0, _T("微软雅黑"));
+
+    // 文字居中
+    int w = textwidth(text.c_str());
+    int h = textheight(text.c_str());
+    int x = r.left + (r.right - r.left - w) / 2;
+    int y = r.top + (r.bottom - r.top - h) / 2;
+    outtextxy(x, y, text.c_str());
 }
 
-void UI::draw(double time, const EngineData& data, EngineState state) {
-    cleardevice(); // 清屏
-
-    // 1. 绘制 N1 表盘 (左发、右发)
-    // 参数：圆心x, 圆心y, 半径, 当前值, 最大值, 标签
-    drawGauge(200, 200, 100, data.N1_rpm, 45000, _T("N1 Left"));
-    drawGauge(600, 200, 100, data.N2_rpm, 45000, _T("N1 Right"));
-
-    // 2. 绘制 EGT 表盘 (放在中间下面一点)
-    drawGauge(300, 350, 80, data.EGT1_temp, 1200, _T("EGT Left"));
-    drawGauge(500, 350, 80, data.EGT2_temp, 1200, _T("EGT Right"));
-
-    // 3. 绘制数字信息 (Fuel Flow, Time)
+// 绘制数据信息框
+void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit) {
     TCHAR buf[64];
+    _stprintf_s(buf, _T("%.2f %s"), value, unit.c_str());
+
+    settextcolor(COLOR_TEXT);
+    settextstyle(18, 0, _T("Consolas"));
+    outtextxy(x, y, label.c_str());
+
+    settextcolor(COLOR_TEXT_HL);
+    outtextxy(x + 100, y, buf);
+}
+
+void UI::draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn) {
+    // 1. 绘制全屏背景
+    setbkcolor(COLOR_BG);
+    cleardevice();
+
+    // 2. 标题栏
     settextcolor(WHITE);
-    settextstyle(20, 0, _T("Consolas"));
+    settextstyle(30, 0, _T("微软雅黑"));
+    outtextxy(20, 20, _T("Twin-Engine EICAS Simulator"));
 
-    _stprintf_s(buf, _T("Time: %.2f s"), time);
-    outtextxy(800, 20, buf);
+    // 运行时间 (右上角)
+    TCHAR timeBuf[32];
+    _stprintf_s(timeBuf, _T("T+ %.2f s"), time);
+    outtextxy(850, 20, timeBuf);
 
-    _stprintf_s(buf, _T("Fuel Flow: %.2f"), data.Fuel_V);
-    outtextxy(350, 600, buf);
+    // 3. 绘制仪表区 (两行两列布局)
+    // 第一行：N1 转速
+    drawGauge(300, 200, 110, data.N1_rpm, 45000, _T("N1 (L)"));
+    drawGauge(724, 200, 110, data.N2_rpm, 45000, _T("N1 (R)"));
 
-    _stprintf_s(buf, _T("Fuel Qty: %.0f"), data.Fuel_C);
-    outtextxy(350, 630, buf);
+    // 第二行：EGT 温度
+    drawGauge(300, 420, 90, data.EGT1_temp, 1200, _T("EGT (L)"));
+    drawGauge(724, 420, 90, data.EGT2_temp, 1200, _T("EGT (R)"));
 
-    // 4. 绘制状态灯 (Start / Run)
-    // 简单画两个矩形框，根据状态改变填充色
-    bool isStarting = (state == EngineState::STARTING);
-    bool isRunning = (state == EngineState::RUNNING);
+    // 4. 中央数据面板 (放在两个引擎中间)
+    int infoX = 430;
+    int infoY = 250;
+    setlinecolor(COLOR_PANEL_BG);
+    rectangle(infoX - 10, infoY - 10, infoX + 230, infoY + 120);
 
-    setfillcolor(isStarting ? YELLOW : RGB(50, 50, 50));
-    fillrectangle(50, 50, 150, 90); // Start 窗口
-    settextcolor(BLACK);
-    outtextxy(60, 60, _T("START"));
+    drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"));
+    drawInfoBox(infoX, infoY + 30, _T("Fuel Qty"), data.Fuel_C, _T("kg"));
 
-    setfillcolor(isRunning ? GREEN : RGB(50, 50, 50));
-    fillrectangle(160, 50, 260, 90); // Run 窗口
-    outtextxy(180, 60, _T("RUN"));
+    // 状态灯
+    bool isStart = (state == EngineState::STARTING);
+    bool isRun = isRunningLightOn;
 
-    // 5. 绘制交互按钮
-    drawButton(btnStartRect.left, btnStartRect.top, 120, 50, _T("START"), COLOR_BTN_START);
-    drawButton(btnStopRect.left, btnStopRect.top, 120, 50, _T("STOP"), COLOR_BTN_STOP);
+    setfillcolor(isStart ? RGB(255, 200, 0) : RGB(40, 40, 40));
+    solidcircle(infoX + 50, infoY + 80, 10);
+    settextcolor(isStart ? RGB(255, 200, 0) : RGB(100, 100, 100));
+    outtextxy(infoX + 70, infoY + 70, _T("STARTING"));
 
-    FlushBatchDraw(); // 显存交换
+    setfillcolor(isRun ? RGB(0, 255, 0) : RGB(40, 40, 40));
+    solidcircle(infoX + 50, infoY + 105, 10);
+    settextcolor(isRun ? RGB(0, 255, 0) : RGB(100, 100, 100));
+    outtextxy(infoX + 70, infoY + 95, _T("RUNNING"));
+
+    // 5. 绘制控制面板 (底部)
+    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
+    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
+    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
+    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
+
+    FlushBatchDraw();
 }
 
 int UI::handleInput() {
     ExMessage msg;
-    // 使用 peekmessage 不阻塞
     while (peekmessage(&msg, EM_MOUSE)) {
         if (msg.message == WM_LBUTTONDOWN) {
-            // 检查是否点击了 Start
-            if (msg.x >= btnStartRect.left && msg.x <= btnStartRect.right &&
-                msg.y >= btnStartRect.top && msg.y <= btnStartRect.bottom) {
-                return 1;
-            }
-            // 检查是否点击了 Stop
-            if (msg.x >= btnStopRect.left && msg.x <= btnStopRect.right &&
-                msg.y >= btnStopRect.top && msg.y <= btnStopRect.bottom) {
-                return 2;
-            }
+            int x = msg.x;
+            int y = msg.y;
+
+            // 辅助 Lambda：判断点是否在矩形内
+            auto isIn = [&](RECT r) { return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
+
+            if (isIn(btnStartRect)) return 1;
+            if (isIn(btnStopRect))  return 2;
+            if (isIn(btnIncRect))   return 3;
+            if (isIn(btnDecRect))   return 4;
         }
     }
     return 0;

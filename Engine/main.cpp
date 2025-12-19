@@ -25,6 +25,8 @@ int main() {
         int cmd = ui.handleInput();
         if (cmd == 1) sim.startEngine();
         if (cmd == 2) sim.stopEngine();
+        if (cmd == 3) sim.addDash();    // 点击了 THRUST +
+        if (cmd == 4) sim.reduceDash(); // 点击了 THRUST -
 
         // --- C. 物理逻辑更新 (定长 5ms) ---
         // 核心循环：如果画面卡顿，这里会连续执行多次 update 以追赶时间
@@ -53,8 +55,8 @@ int main() {
 
         // 由于我现在没法改你的 Simulator.h，我们暂时假设 UI 的 state 参数无效，或者你去 Simulator.h 加一行。
         // 这里模拟一个状态传入 (你需要去 Simulator.h 加: EngineState getState() { return current_state; })
-
-        ui.draw(timer.getSimulationTime(), sim.getData(), sim.getState());
+        bool stable = sim.isStabilized();
+        ui.draw(timer.getSimulationTime(), sim.getData(), sim.getState(), stable);
         // ^ 注意：要把 EngineState::OFF 改成 sim.getState() 才能看到状态灯变化！
 
         // 如果想按 ESC 退出

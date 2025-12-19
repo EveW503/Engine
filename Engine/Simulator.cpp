@@ -164,6 +164,15 @@ void Simulator::reduceDash()
     }
 }
 
+bool Simulator::isStabilized()
+{
+    // 直接返回布尔表达式，代码更简洁
+    // 注意：这里用到了 max_rpm 成员变量，这正是逻辑应该放在这里的原因（UI不应该知道max_rpm是多少）
+    return (current_state == EngineState::RUNNING &&
+        eng_data.N1_rpm >= max_rpm * 0.95 &&
+        eng_data.N2_rpm >= max_rpm * 0.95);
+}
+
 EngineState Simulator::getState()
 {
     return current_state;

@@ -24,6 +24,7 @@ public:
 	void update();
 	void addDash();
 	void reduceDash();
+	bool isStabilized();
 	EngineState getState();
 	EngineData getData();
 };
