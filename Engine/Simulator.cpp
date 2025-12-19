@@ -39,8 +39,6 @@ void Simulator::stopEngine()
 void Simulator::update()
 {
 
-    N1 = eng_data.rpm_1 / 400;
-    N2 = eng_data.rpm_2 / 400;
     if (current_state == EngineState::STARTING || current_state == EngineState::STOPPING) {
         phase_timer += DT;
     }
@@ -129,6 +127,9 @@ void Simulator::update()
     if (eng_data.Fuel_C > 0) {
         eng_data.Fuel_C -= eng_data.Fuel_V * DT;
     }
+
+    N1 = (eng_data.rpm_1 / max_rpm) * 100.0;
+    N2 = (eng_data.rpm_2 / max_rpm) * 100.0;
 }
 
 void Simulator::addDash()

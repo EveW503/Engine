@@ -20,7 +20,7 @@ public:
 
 private:
     // 优化的仪表盘绘制函数
-    void drawGauge(int x, int y, int radius, double val, double maxVal, const std::wstring& label);
+    void drawGauge(int x, int y, int radius, double val, double minVal, double maxVal, const std::wstring& label);
 
     // 优化的按钮绘制函数
     void drawButton(RECT r, const std::wstring& text, COLORREF bgColor, COLORREF hoverColor = 0);

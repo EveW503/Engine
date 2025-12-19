@@ -41,7 +41,7 @@ void UI::init() {
 }
 
 // 优化的仪表盘：270度扫描 (左下 135度 -> 右下 405度)
-void UI::drawGauge(int x, int y, int radius, double val, double maxVal, const std::wstring& label) {
+void UI::drawGauge(int x, int y, int radius, double val, double minVal, double maxVal, const std::wstring& label) {
     // EasyX 角度：0=东, 90=南, 180=西. 顺时针增加.
     // 我们希望从 "西南(135度)" 转到 "东南(45度)"，跨度 270度
     double startRad = 135 * PI / 180.0;
@@ -52,7 +52,8 @@ void UI::drawGauge(int x, int y, int radius, double val, double maxVal, const st
     solidpie(x - radius, y - radius, x + radius, y + radius, startRad, startRad + sweepRad);
 
     // 2. 画动态数据 (绿色扇形)
-    double ratio = val / maxVal;
+    double ratio = (val - minVal) / (maxVal - minVal);
+
     if (ratio < 0) ratio = 0;
     if (ratio > 1) ratio = 1;
 
@@ -133,13 +134,14 @@ void UI::draw(double time, const EngineData& data, EngineState state, bool isRun
     outtextxy(850, 20, timeBuf);
 
     // 3. 绘制仪表区 (两行两列布局)
-    // 第一行：N1 转速
-    drawGauge(300, 200, 110, N1, 125, _T("N1 (L)"));
-    drawGauge(724, 200, 110, N2, 125, _T("N1 (R)"));
+ // 第一行：N1 转速 (量程 0 到 125)
+    drawGauge(300, 200, 110, N1, 0, 125, _T("N1 (L)")); // 传入 minVal = 0
+    drawGauge(724, 200, 110, N2, 0, 125, _T("N1 (R)")); // 传入 minVal = 0
 
-    // 第二行：EGT 温度
-    drawGauge(300, 420, 90, data.EGT1_temp, 1200, _T("EGT (L)"));
-    drawGauge(724, 420, 90, data.EGT2_temp, 1200, _T("EGT (R)"));
+    // 第二行：EGT 温度 (量程 -5 到 1200)
+    // 【修正】这里传入 minVal = -5
+    drawGauge(300, 420, 90, data.EGT1_temp, -5, 1200, _T("EGT (L)"));
+    drawGauge(724, 420, 90, data.EGT2_temp, -5, 1200, _T("EGT (R)"));
 
     // 4. 中央数据面板 (放在两个引擎中间)
     int infoX = 430;
