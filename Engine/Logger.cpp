@@ -30,8 +30,8 @@ void Logger::log(double time, const EngineData& data) {
         // 使用 CSV 格式写入，逗号分隔
         outFile << std::fixed << std::setprecision(3)
             << time << ","
-            << data.N1_rpm << ","
-            << data.N2_rpm << ","
+            << data.rpm_1 << ","
+            << data.rpm_2 << ","
             << data.EGT1_temp << ","
             << data.EGT2_temp << ","
             << data.Fuel_V << ","

@@ -7,7 +7,10 @@ class Simulator {
 private:
 	EngineData eng_data;
 	double phase_timer; // 当前阶段运行了多久
-	EngineState current_state;  
+	EngineState current_state;
+
+	double N1;
+	double N2;// 转速
 
 	double record_N;
 	double record_EGT;
@@ -25,6 +28,8 @@ public:
 	void addDash();
 	void reduceDash();
 	bool isStabilized();
+	double getN1();
+	double getN2();
 	EngineState getState();
 	EngineData getData();
 };

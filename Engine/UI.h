@@ -12,7 +12,7 @@ public:
     void init();
 
     // 绘制所有界面元素
-    void draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn);
+    void draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn, double N1, double N2);
 
     // 处理鼠标点击
     // 返回值: 0-无, 1-Start, 2-Stop, 3-Inc, 4-Dec

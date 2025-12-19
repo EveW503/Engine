@@ -117,7 +117,7 @@ void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, cons
     outtextxy(x + 100, y, buf);
 }
 
-void UI::draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn) {
+void UI::draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn,double N1,double N2) {
     // 1. 绘制全屏背景
     setbkcolor(COLOR_BG);
     cleardevice();
@@ -134,8 +134,8 @@ void UI::draw(double time, const EngineData& data, EngineState state, bool isRun
 
     // 3. 绘制仪表区 (两行两列布局)
     // 第一行：N1 转速
-    drawGauge(300, 200, 110, data.N1_rpm, 45000, _T("N1 (L)"));
-    drawGauge(724, 200, 110, data.N2_rpm, 45000, _T("N1 (R)"));
+    drawGauge(300, 200, 110, N1, 125, _T("N1 (L)"));
+    drawGauge(724, 200, 110, N2, 125, _T("N1 (R)"));
 
     // 第二行：EGT 温度
     drawGauge(300, 420, 90, data.EGT1_temp, 1200, _T("EGT (L)"));

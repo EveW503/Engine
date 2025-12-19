@@ -18,8 +18,8 @@ enum class AlertLevel {
 };
 
 struct EngineData {
-    double N1_rpm; 
-    double N2_rpm;// 转速
+    double rpm_1;
+    double rpm_2;
     double EGT1_temp;
     double EGT2_temp;// 排气温度
     double Fuel_C;     // 燃油余量

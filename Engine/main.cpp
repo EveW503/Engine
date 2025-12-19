@@ -55,8 +55,10 @@ int main() {
 
         // 由于我现在没法改你的 Simulator.h，我们暂时假设 UI 的 state 参数无效，或者你去 Simulator.h 加一行。
         // 这里模拟一个状态传入 (你需要去 Simulator.h 加: EngineState getState() { return current_state; })
+        double N1 = sim.getN1();
+        double N2 = sim.getN2();
         bool stable = sim.isStabilized();
-        ui.draw(timer.getSimulationTime(), sim.getData(), sim.getState(), stable);
+        ui.draw(timer.getSimulationTime(), sim.getData(), sim.getState(), stable,N1,N2);
         // ^ 注意：要把 EngineState::OFF 改成 sim.getState() 才能看到状态灯变化！
 
         // 如果想按 ESC 退出
