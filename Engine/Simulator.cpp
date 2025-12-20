@@ -268,3 +268,8 @@ double Simulator::getN2()
 {
     return N2;
 }
+
+void Simulator::setErrorType(ErrorType type)
+{
+    error_type = type;
+}

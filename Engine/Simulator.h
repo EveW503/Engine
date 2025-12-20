@@ -31,6 +31,7 @@ public:
 	bool isStabilized();
 	double getN1();
 	double getN2();
+	void setErrorType(ErrorType type);
 	EngineState getState();
 	EngineData getData();
 };

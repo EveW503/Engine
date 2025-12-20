@@ -20,6 +20,10 @@
 #define COLOR_BTN_INC      RGB(0, 100, 150)
 #define COLOR_BTN_DEC      RGB(150, 100, 0)
 
+#define COLOR_BTN_FAULT    RGB(100, 40, 40)   // 故障按钮底色(暗红)
+#define COLOR_CAS_BG       RGB(20, 20, 20)    // 消息区背景
+#define COLOR_CAS_TEXT     RGB(255, 50, 50)   // 消息文字红
+
 const double PI = 3.1415926535;
 
 UI::UI() {
@@ -29,6 +33,37 @@ UI::UI() {
     btnDecRect = { centerX - 130, startY + 60, centerX - 10, startY + 110 };
     btnStartRect = { centerX + 10, startY, centerX + 130, startY + 50 };
     btnStopRect = { centerX + 10, startY + 60, centerX + 130, startY + 110 };
+
+    // 【新增】初始化 14 个故障按钮 (放在屏幕最底部，2行7列)
+    // 按钮宽 80，高 30，间隔 10
+    int fBtnW = 100;
+    int fBtnH = 30;
+    int gap = 10;
+    int gridStartX = (1024 - (7 * fBtnW + 6 * gap)) / 2; // 居中计算
+    int gridStartY = 650; // 放在主按钮下方
+
+    ErrorType types[] = {
+        ErrorType::SENSOR_N_ONE, ErrorType::SENSOR_N_TWO,
+        ErrorType::SENSOR_EGT_ONE, ErrorType::SENSOR_EGT_TWO,
+        ErrorType::SENSOR_FUEL, ErrorType::SENSOR_ALL,
+        ErrorType::LOW_FUEL,
+        ErrorType::OVERSPEED_N1_1, ErrorType::OVERSPEED_N1_2,
+        ErrorType::OVERHEAT_EGT_1, ErrorType::OVERHEAT_EGT_2,
+        ErrorType::OVERHEAT_EGT_3, ErrorType::OVERHEAT_EGT_4,
+        ErrorType::OVERSPEED_FUEL
+    };
+
+    for (int i = 0; i < 14; i++) {
+        faultTypes[i] = types[i]; // 保存映射关系
+
+        int row = i / 7; // 第几行 (0或1)
+        int col = i % 7; // 第几列 (0-6)
+
+        int x = gridStartX + col * (fBtnW + gap);
+        int y = gridStartY + row * (fBtnH + gap);
+
+        faultButtons[i] = { x, y, x + fBtnW, y + fBtnH };
+    }
 }
 
 UI::~UI() {
@@ -137,7 +172,8 @@ void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, cons
     outtextxy(x + 100, y, buf);
 }
 
-void UI::draw(double time, const EngineData& data, EngineState state, bool isRunningLightOn, double N1, double N2) {
+void UI::draw(double time, const EngineData& data, EngineState state,
+    bool isRunningLightOn, double N1, double N2, ErrorType detectedError) {
     setbkcolor(COLOR_BG);
     cleardevice();
 
@@ -186,6 +222,18 @@ void UI::draw(double time, const EngineData& data, EngineState state, bool isRun
     drawGauge(300, 420, 90, data.EGT1_temp, -5, 1200, _T("EGT °C (L)"), statusEGT_L);
     drawGauge(724, 420, 90, data.EGT2_temp, -5, 1200, _T("EGT °C (R)"), statusEGT_R);
 
+    settextstyle(16, 0, _T("Arial"));
+    for (int i = 0; i < 14; i++) {
+        // 简短的按钮标签 (比如 "Err 1")
+        TCHAR btnLabel[10];
+        _stprintf_s(btnLabel, _T("Fault %d"), i + 1);
+        drawButton(faultButtons[i], btnLabel, COLOR_BTN_FAULT);
+    }
+
+    // --- 绘制 EICAS 警告信息 (输出) ---
+    // 这里传入的是 EICAS::judge 判断后的结果
+    drawCASMessage(detectedError);
+
     // --- 4. 中央数据 & 状态灯 ---
     int infoX = 430;
     int infoY = 250;
@@ -214,6 +262,55 @@ void UI::draw(double time, const EngineData& data, EngineState state, bool isRun
     FlushBatchDraw();
 }
 
+std::wstring UI::getErrorString(ErrorType error) {
+    switch (error) {
+    case ErrorType::SENSOR_N_ONE:   return _T("FAIL: L N1 SENSOR");
+    case ErrorType::SENSOR_N_TWO:   return _T("FAIL: R N1 SENSOR");
+    case ErrorType::SENSOR_EGT_ONE: return _T("FAIL: L EGT SENSOR");
+    case ErrorType::SENSOR_EGT_TWO: return _T("FAIL: R EGT SENSOR");
+    case ErrorType::SENSOR_FUEL:    return _T("FAIL: FUEL SENSOR");
+    case ErrorType::SENSOR_ALL:     return _T("FAIL: ALL SENSORS");
+    case ErrorType::LOW_FUEL:       return _T("ALERT: LOW FUEL");
+    case ErrorType::OVERSPEED_N1_1: return _T("WARN: L ENG OVERSPEED");
+    case ErrorType::OVERSPEED_N1_2: return _T("WARN: R ENG OVERSPEED");
+    case ErrorType::OVERHEAT_EGT_1: return _T("WARN: L EGT OVERHEAT");
+    case ErrorType::OVERHEAT_EGT_2: return _T("WARN: R EGT OVERHEAT");
+    case ErrorType::OVERHEAT_EGT_3: return _T("WARN: L EGT CRITICAL");
+    case ErrorType::OVERHEAT_EGT_4: return _T("WARN: R EGT CRITICAL");
+    case ErrorType::OVERSPEED_FUEL: return _T("WARN: FUEL LEAK");
+    default: return _T("");
+    }
+}
+
+// 【新增】绘制 CAS 消息 (显示在屏幕中央醒目位置)
+void UI::drawCASMessage(ErrorType error) {
+    if (error == ErrorType::NONE) return;
+
+    std::wstring msg = getErrorString(error);
+    if (msg.empty()) return;
+
+    // 绘制一个带边框的警告框
+    int boxX = 362; // 居中 (1024-300)/2
+    int boxY = 120;
+    int boxW = 300;
+    int boxH = 50;
+
+    setfillcolor(COLOR_CAS_BG);
+    setlinecolor(COLOR_CAS_TEXT);
+    setlinestyle(PS_SOLID, 2);
+    fillrectangle(boxX, boxY, boxX + boxW, boxY + boxH);
+    rectangle(boxX, boxY, boxX + boxW, boxY + boxH);
+
+    // 绘制文字
+    settextcolor(COLOR_CAS_TEXT);
+    settextstyle(24, 0, _T("Consolas"));
+
+    // 文字居中计算
+    int textW = textwidth(msg.c_str());
+    int textH = textheight(msg.c_str());
+    outtextxy(boxX + (boxW - textW) / 2, boxY + (boxH - textH) / 2, msg.c_str());
+}
+
 int UI::handleInput() {
     ExMessage msg;
     while (peekmessage(&msg, EM_MOUSE)) {
@@ -225,6 +322,13 @@ int UI::handleInput() {
             if (isIn(btnStopRect)) return 2;
             if (isIn(btnIncRect)) return 3;
             if (isIn(btnDecRect)) return 4;
+
+            for (int i = 0; i < 14; i++) {
+                if (isIn(faultButtons[i])) {
+                    return 100 + i;
+                }
+            }
+
         }
     }
     return 0;

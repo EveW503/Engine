@@ -1,71 +1,80 @@
 #include "Simulator.h"
-#include "EICAS.h"
 #include "UI.h"
 #include "Logger.h"
 #include "Timer.h"
+#include "EICAS.h" // 引入 EICAS 类
+#include <Windows.h>
 
 int main() {
-
-    srand((unsigned int)time(0));
-    // 1. 初始化各模块
-    EICAS eicas;
+    // 1. 实例化模块
     Simulator sim;
+    EICAS eicas;    // 你的检测逻辑类
     UI ui;
     Logger logger;
-    Timer timer(0.005); // 设定物理步长 5ms
+    Timer timer(0.005);
+
+    // 随机数种子 (放在这里!)
+    srand((unsigned int)time(0));
 
     ui.init();
-    BeginBatchDraw(); // 开启 EasyX 双缓冲，防闪烁
+    BeginBatchDraw();
 
-    bool isAppRunning = true;
-
-    while (isAppRunning) {
-        // --- A. 时间步进 ---
+    bool running = true;
+    while (running) {
         timer.tick();
 
-        // --- B. 处理用户输入 ---
+        // --- A. 处理 UI 输入 (包含故障按钮) ---
         int cmd = ui.handleInput();
+
         if (cmd == 1) sim.startEngine();
         if (cmd == 2) sim.stopEngine();
-        if (cmd == 3) sim.addDash();    // 点击了 THRUST +
-        if (cmd == 4) sim.reduceDash(); // 点击了 THRUST -
+        if (cmd == 3) sim.addDash();
+        if (cmd == 4) sim.reduceDash();
 
-        // --- C. 物理逻辑更新 (定长 5ms) ---
-        // 核心循环：如果画面卡顿，这里会连续执行多次 update 以追赶时间
-        while (timer.consumeStep()) {
-            sim.update(); // 每次执行代表物理世界过去了 5ms
+        // 故障注入指令 (100 ~ 113)
+        if (cmd >= 100 && cmd < 114) {
+            int faultIndex = cmd - 100;
+            // 映射回 ErrorType (需要和 UI.cpp 里的数组顺序一致)
+            ErrorType types[] = {
+                ErrorType::SENSOR_N_ONE, ErrorType::SENSOR_N_TWO,
+                ErrorType::SENSOR_EGT_ONE, ErrorType::SENSOR_EGT_TWO,
+                ErrorType::SENSOR_FUEL, ErrorType::SENSOR_ALL,
+                ErrorType::LOW_FUEL,
+                ErrorType::OVERSPEED_N1_1, ErrorType::OVERSPEED_N1_2,
+                ErrorType::OVERHEAT_EGT_1, ErrorType::OVERHEAT_EGT_2,
+                ErrorType::OVERHEAT_EGT_3, ErrorType::OVERHEAT_EGT_4,
+                ErrorType::OVERSPEED_FUEL
+            };
 
-            // 记录日志 (题目要求每 5ms 记录一次)
-            // 获取当前仿真时间
-            logger.log(timer.getSimulationTime(), sim.getData());
-            ErrorType error = eicas.judge(sim.getData());
+            // 注入故障到模拟器
+            sim.setErrorType(types[faultIndex]); // 假设你在 Simulator.h 加了这个接口
+            // 或者 sim.setErrorType(types[faultIndex]); 
         }
 
-        // --- D. 渲染画面 ---
-        // 获取当前数据并绘制
-        // 注意：UI 绘制可以按照屏幕刷新率来，不需要每 5ms 画一次（那样太快人眼看不清）
-        // 这里每一帧循环画一次即可
+        // --- B. 物理更新 ---
+        while (timer.consumeStep()) {
+            sim.update();
+            logger.log(timer.getSimulationTime(), sim.getData());
+        }
 
-        // 这里的 Simulator 类需要添加一个 getCurrentState() 方法方便 UI 判断状态
-        // 既然你 Simulator.h 里 current_state 是 private，
-        // 你可以在 Simulator 类里加一个 `EngineState getState() { return current_state; }`
-        // 或者直接传 getData() 里的数据如果包含状态的话。
-        // *为了编译通过，我现在假设你会在 Simulator.h 加一个 getter，或者仅仅传 STARTING/RUNNING 给 UI*
-        // *临时方案：修改 Simulator.h 把 current_state 设为 public，或者加个 getter*
+        // --- C. EICAS 逻辑判定 (核心功能) ---
+        // 获取模拟器的原始数据
+        EngineData rawData = sim.getData();
 
-        // 我们假设你在 Simulator.h 加了这个函数：
-        // EngineState getState() { return current_state; }
+        // EICAS 进行独立判定 (不依赖 Simulator 的 error_type，只看数据)
+        ErrorType detectedError = eicas.judge(rawData);
 
-        // 由于我现在没法改你的 Simulator.h，我们暂时假设 UI 的 state 参数无效，或者你去 Simulator.h 加一行。
-        // 这里模拟一个状态传入 (你需要去 Simulator.h 加: EngineState getState() { return current_state; })
-        double N1 = sim.getN1();
-        double N2 = sim.getN2();
-        bool stable = sim.isStabilized();
-        ui.draw(timer.getSimulationTime(), sim.getData(), sim.getState(), stable,N1,N2);
-        // ^ 注意：要把 EngineState::OFF 改成 sim.getState() 才能看到状态灯变化！
+        // --- D. 绘图 (闭环显示) ---
+        // 将 EICAS 判定出的 detectedError 传给 UI 显示
+        ui.draw(timer.getSimulationTime(),
+            rawData,
+            sim.getState(),
+            sim.isStabilized(),
+            sim.getN1(),
+            sim.getN2(),
+            detectedError); // <--- 这里传入检测结果
 
-        // 如果想按 ESC 退出
-        if (GetAsyncKeyState(VK_ESCAPE)) isAppRunning = false;
+        if (GetAsyncKeyState(VK_ESCAPE)) running = false;
     }
 
     EndBatchDraw();
