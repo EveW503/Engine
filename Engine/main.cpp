@@ -4,6 +4,7 @@
 #include "Timer.h"
 #include "EICAS.h" // 引入 EICAS 类
 #include <Windows.h>
+#include <comdef.h>
 
 int main() {
     // 1. 实例化模块
@@ -57,24 +58,26 @@ int main() {
             logger.log(timer.getSimulationTime(), sim.getData());
         }
 
-        // --- C. EICAS 逻辑判定 (核心功能) ---
-        // 获取模拟器的原始数据
         EngineData rawData = sim.getData();
         EngineState eng_state = sim.getState();
+        std::vector<ErrorType> detectedErrors = eicas.judge(rawData, eng_state);
 
-        // EICAS 进行独立判定 (不依赖 Simulator 的 error_type，只看数据)
-        ErrorType detectedError = eicas.judge(rawData, eng_state);
+        // --- 【新增】 日志记录报警信息 ---
+        for (const auto& err : detectedErrors) {
+            std::wstring wMsg = ui.getErrorString(err);
+            std::string msg = (const char*)_bstr_t(wMsg.c_str()); // 需 #include <comdef.h>
+            logger.logAlert(timer.getSimulationTime(), msg);
+        }
 
-        // --- D. 绘图 (闭环显示) ---
-        // 将 EICAS 判定出的 detectedError 传给 UI 显示
+        // --- D. 绘图 ---
+        // 【修改】传入 vector
         ui.draw(timer.getSimulationTime(),
             rawData,
             sim.getState(),
             sim.isStabilized(),
             sim.getN1(),
             sim.getN2(),
-            detectedError); // <--- 这里传入检测结果
-
+            detectedErrors);
         if (GetAsyncKeyState(VK_ESCAPE)) running = false;
     }
 

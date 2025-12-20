@@ -56,6 +56,34 @@ COLORREF getAlertColor(ErrorType error) {
     }
 }
 
+std::wstring UI::getErrorString(ErrorType error) {
+    switch (error) {
+        // 传感器
+    case ErrorType::SENSOR_N_ONE:   return _T("ADVISORY: N1 SENSOR FAULT"); // 单个坏，白色
+    case ErrorType::SENSOR_N_TWO:   return _T("CAUTION: ENG N1 SENSOR FAIL"); // 单发全坏，琥珀
+    case ErrorType::SENSOR_EGT_ONE: return _T("ADVISORY: EGT SENSOR FAULT");
+    case ErrorType::SENSOR_EGT_TWO: return _T("CAUTION: ENG EGT SENSOR FAIL");
+    case ErrorType::SENSOR_FUEL:    return _T("WARNING: FUEL SENSOR FAIL");
+    case ErrorType::SENSOR_ALL:     return _T("WARNING: DUAL ENG FAIL"); // 双发全坏
+
+        // 燃油
+    case ErrorType::LOW_FUEL:       return _T("CAUTION: LOW FUEL QTY");
+    case ErrorType::OVERSPEED_FUEL: return _T("CAUTION: HIGH FUEL FLOW");
+
+        // N1 转速
+    case ErrorType::OVERSPEED_N1_1: return _T("CAUTION: N1 OVERSPEED"); // 105%
+    case ErrorType::OVERSPEED_N1_2: return _T("WARNING: ENG OVERSPEED"); // 120%
+
+        // EGT 温度
+    case ErrorType::OVERHEAT_EGT_1: return _T("CAUTION: EGT OVERHEAT"); // 启动黄
+    case ErrorType::OVERHEAT_EGT_2: return _T("WARNING: EGT CRITICAL"); // 启动红
+    case ErrorType::OVERHEAT_EGT_3: return _T("CAUTION: EGT OVERHEAT"); // 稳态黄
+    case ErrorType::OVERHEAT_EGT_4: return _T("WARNING: EGT CRITICAL"); // 稳态红
+
+    default: return _T("");
+    }
+}
+
 UI::UI() {
     int centerX = 512;
 
@@ -224,7 +252,7 @@ void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, cons
 }
 
 void UI::draw(double time, const EngineData& data, EngineState state,
-    bool isRunningLightOn, double N1, double N2, ErrorType detectedError) {
+    bool isRunningLightOn, double N1, double N2, const std::vector<ErrorType>& detectedErrors) {
 
     setbkcolor(COLOR_BG);
     cleardevice();
@@ -270,7 +298,7 @@ void UI::draw(double time, const EngineData& data, EngineState state,
         drawButton(faultButtons[i], faultLabels[i], COLOR_BTN_FAULT);
     }
 
-    drawCASMessage(detectedError);
+    drawCASList(detectedErrors);
 
     // --- 中央数据区 ---
     int infoX = 430;
@@ -295,64 +323,50 @@ void UI::draw(double time, const EngineData& data, EngineState state,
     FlushBatchDraw();
 }
 
-std::wstring UI::getErrorString(ErrorType error) {
-    switch (error) {
-        // 传感器
-    case ErrorType::SENSOR_N_ONE:   return _T("ADVISORY: N1 SENSOR FAULT"); // 单个坏，白色
-    case ErrorType::SENSOR_N_TWO:   return _T("CAUTION: ENG N1 SENSOR FAIL"); // 单发全坏，琥珀
-    case ErrorType::SENSOR_EGT_ONE: return _T("ADVISORY: EGT SENSOR FAULT");
-    case ErrorType::SENSOR_EGT_TWO: return _T("CAUTION: ENG EGT SENSOR FAIL");
-    case ErrorType::SENSOR_FUEL:    return _T("WARNING: FUEL SENSOR FAIL");
-    case ErrorType::SENSOR_ALL:     return _T("WARNING: DUAL ENG FAIL"); // 双发全坏
 
-        // 燃油
-    case ErrorType::LOW_FUEL:       return _T("CAUTION: LOW FUEL QTY");
-    case ErrorType::OVERSPEED_FUEL: return _T("CAUTION: HIGH FUEL FLOW");
+// 【重写】绘制多条 CAS 消息列表
+void UI::drawCASList(const std::vector<ErrorType>& errors) {
+    if (errors.empty()) return;
 
-        // N1 转速
-    case ErrorType::OVERSPEED_N1_1: return _T("CAUTION: N1 OVERSPEED"); // 105%
-    case ErrorType::OVERSPEED_N1_2: return _T("WARNING: ENG OVERSPEED"); // 120%
+    // 起始位置：屏幕水平居中，垂直靠上 (位于两个 N1 表盘中间)
+    int startX = 362; // (1024 - 300) / 2
+    int startY = 80;  // 标题栏下方，避开仪表
+    int itemHeight = 35; // 每行高度
+    int boxWidth = 300;
 
-        // EGT 温度
-    case ErrorType::OVERHEAT_EGT_1: return _T("CAUTION: EGT OVERHEAT"); // 启动黄
-    case ErrorType::OVERHEAT_EGT_2: return _T("WARNING: EGT CRITICAL"); // 启动红
-    case ErrorType::OVERHEAT_EGT_3: return _T("CAUTION: EGT OVERHEAT"); // 稳态黄
-    case ErrorType::OVERHEAT_EGT_4: return _T("WARNING: EGT CRITICAL"); // 稳态红
+    settextstyle(22, 0, _T("Consolas")); // 稍微调小一点字体以容纳更多行
 
-    default: return _T("");
+    // 遍历所有错误并绘制
+    for (size_t i = 0; i < errors.size(); i++) {
+        ErrorType err = errors[i];
+        std::wstring msg = getErrorString(err);
+        if (msg.empty()) continue;
+
+        // 获取颜色
+        COLORREF color = getAlertColor(err);
+
+        // 计算当前行的 Y 坐标
+        int currentY = startY + (int)i * itemHeight;
+
+        // 绘制背景条 (半透明黑色背景，增强可读性)
+        setfillcolor(RGB(20, 20, 20));
+        setlinecolor(color); // 边框颜色代表报警等级
+        setlinestyle(PS_SOLID, 2);
+
+        fillrectangle(startX, currentY, startX + boxWidth, currentY + itemHeight);
+        rectangle(startX, currentY, startX + boxWidth, currentY + itemHeight);
+
+        // 绘制文字
+        settextcolor(color);
+
+        // 文字居中
+        int textW = textwidth(msg.c_str());
+        int textH = textheight(msg.c_str());
+        int textX = startX + (boxWidth - textW) / 2;
+        int textY = currentY + (itemHeight - textH) / 2;
+
+        outtextxy(textX, textY, msg.c_str());
     }
-}
-
-// 【新增】绘制 CAS 消息 (显示在屏幕中央醒目位置)
-// 【修改】绘制函数支持变色
-void UI::drawCASMessage(ErrorType error) {
-    if (error == ErrorType::NONE) return;
-
-    std::wstring msg = getErrorString(error);
-    if (msg.empty()) return;
-
-    // 获取对应颜色
-    COLORREF alertColor = getAlertColor(error);
-
-    int boxX = 362;
-    int boxY = 120;
-    int boxW = 300;
-    int boxH = 50;
-
-    // 使用对应颜色绘制背景(微透)或边框
-    setfillcolor(COLOR_CAS_BG);
-    setlinecolor(alertColor); // 边框颜色跟随报警级别
-    setlinestyle(PS_SOLID, 2);
-    fillrectangle(boxX, boxY, boxX + boxW, boxY + boxH);
-    rectangle(boxX, boxY, boxX + boxW, boxY + boxH);
-
-    // 文字颜色跟随报警级别
-    settextcolor(alertColor);
-    settextstyle(24, 0, _T("Consolas"));
-
-    int textW = textwidth(msg.c_str());
-    int textH = textheight(msg.c_str());
-    outtextxy(boxX + (boxW - textW) / 2, boxY + (boxH - textH) / 2, msg.c_str());
 }
 
 int UI::handleInput() {
