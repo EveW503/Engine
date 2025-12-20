@@ -1,9 +1,10 @@
 #pragma once
-#include <ctime>
-#include <cmath>
 #include "DataStructrue.h"
+#include <cmath>
+#include <ctime>
 
-class Simulator {
+class Simulator
+{
 private:
     EngineData eng_data;
     double phase_timer;

@@ -1,9 +1,10 @@
 #include "Logger.h"
 #include <ctime>
-#include <iostream>
 #include <iomanip>
+#include <iostream> 
 
-Logger::Logger() {
+Logger::Logger()
+{
     // 生成带时间戳的文件名
     time_t now = time(0);
     struct tm tstruct;
@@ -13,39 +14,42 @@ Logger::Logger() {
     filename = buf;
 
     out_file.open(filename);
-    if (out_file.is_open()) {
+    if (out_file.is_open())
+    {
         // 写入CSV表头
         out_file << "Time(s),N1(RPM),N2(RPM),EGT1(C),EGT2(C),Fuel_Flow,Fuel_Quantity\n";
     }
 }
 
-Logger::~Logger() {
-    if (out_file.is_open()) {
+Logger::~Logger()
+{
+    if (out_file.is_open())
+    {
         out_file.close();
     }
 }
 
-void Logger::log(double time, const EngineData& data) {
-    if (out_file.is_open()) {
+void Logger::log(double time, const EngineData &data)
+{
+    if (out_file.is_open())
+    {
         // 格式化输出数据，保留三位小数
-        out_file << std::fixed << std::setprecision(3)
-            << time << ","
-            << data.rpm_1 << ","
-            << data.rpm_2 << ","
-            << data.egt1_temp << ","
-            << data.egt2_temp << ","
-            << data.fuel_v << ","
-            << data.fuel_c << "\n";
+        out_file << std::fixed << std::setprecision(3) << time << "," << data.rpm_1 << "," << data.rpm_2 << ","
+                 << data.egt1_temp << "," << data.egt2_temp << "," << data.fuel_v << "," << data.fuel_c << "\n";
     }
 }
 
-void Logger::logAlert(double time, const std::string& alert_msg) {
-    if (!out_file.is_open() || alert_msg.empty()) return;
+void Logger::logAlert(double time, const std::string &alert_msg)
+{
+    if (!out_file.is_open() || alert_msg.empty())
+        return;
 
     // 5秒内的重复报警不记录
-    if (last_alert_times.find(alert_msg) != last_alert_times.end()) {
+    if (last_alert_times.find(alert_msg) != last_alert_times.end())
+    {
         double last_time = last_alert_times[alert_msg];
-        if (time - last_time < 5.0) {
+        if (time - last_time < 5.0)
+        {
             return;
         }
     }
@@ -53,6 +57,5 @@ void Logger::logAlert(double time, const std::string& alert_msg) {
     last_alert_times[alert_msg] = time;
 
     // 写入报警日志
-    out_file << "ALERT," << std::fixed << std::setprecision(1) << time
-        << ",MESSAGE:," << alert_msg << "\n";
+    out_file << "ALERT," << std::fixed << std::setprecision(1) << time << ",MESSAGE:," << alert_msg << "\n";
 }

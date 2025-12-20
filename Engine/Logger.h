@@ -1,19 +1,20 @@
 #pragma once
-#include <string>
+#include "DataStructrue.h"
 #include <fstream>
 #include <map>
-#include "DataStructrue.h"
+#include <string>
 
-class Logger {
+class Logger
+{
 public:
     Logger();
     ~Logger();
 
     // 记录每帧的数值数据
-    void log(double time, const EngineData& data);
+    void log(double time, const EngineData &data);
 
     // 记录报警事件
-    void logAlert(double time, const std::string& alert_msg);
+    void logAlert(double time, const std::string &alert_msg);
 
 private:
     std::ofstream out_file;

@@ -1,7 +1,8 @@
 #pragma once
 #include <chrono>
 
-class Timer {
+class Timer
+{
 public:
     Timer(double step = 0.005);
 
@@ -21,8 +22,8 @@ private:
     using Clock = std::chrono::high_resolution_clock;
     using TimePoint = std::chrono::time_point<Clock>;
 
-    TimePoint last_time;       // 上一帧的系统时间
-    double accumulator;        // 累积时间池
-    double total_sim_time;     // 仿真逻辑运行的总时间
-    const double fixed_dt;     // 固定时间步长
+    TimePoint last_time;   // 上一帧的系统时间
+    double accumulator;    // 累积时间池
+    double total_sim_time; // 仿真逻辑运行的总时间
+    const double fixed_dt; // 固定时间步长
 };

@@ -31,7 +31,8 @@ Simulator::~Simulator() {}
 
 void Simulator::startEngine()
 {
-    if (current_state == EngineState::OFF || current_state == EngineState::STOPPING) {
+    if (current_state == EngineState::OFF || current_state == EngineState::STOPPING)
+    {
         current_state = EngineState::STARTING;
         phase_timer = 0.0;
     }
@@ -39,7 +40,8 @@ void Simulator::startEngine()
 
 void Simulator::stopEngine()
 {
-    if (current_state != EngineState::OFF) {
+    if (current_state != EngineState::OFF)
+    {
         current_state = EngineState::STOPPING;
         phase_timer = 0.0;
         // 记录停止前的状态基准
@@ -50,31 +52,38 @@ void Simulator::stopEngine()
 
 void Simulator::update()
 {
-    if (current_state == EngineState::STARTING || current_state == EngineState::STOPPING) {
+    if (current_state == EngineState::STARTING || current_state == EngineState::STOPPING)
+    {
         phase_timer += dt;
     }
 
     // 消耗燃油
-    if (real_fuel_c > 0) {
+    if (real_fuel_c > 0)
+    {
         real_fuel_c -= real_fuel_v * dt;
     }
 
     // 燃油耗尽导致停车
-    if (real_fuel_c <= 0.0 && current_state != EngineState::STOPPING && current_state != EngineState::OFF) {
+    if (real_fuel_c <= 0.0 && current_state != EngineState::STOPPING && current_state != EngineState::OFF)
+    {
         real_fuel_c = 0.0;
         stopEngine();
     }
 
-    switch (current_state) {
+    switch (current_state)
+    {
     case EngineState::STARTING:
-        if (phase_timer <= 2.0) {
+        if (phase_timer <= 2.0)
+        {
             real_rpm_1 += 50;
             real_rpm_2 += 50;
             real_fuel_v += 0.025;
         }
-        else {
+        else
+        {
             double t = phase_timer;
-            if (t > 1.0) {
+            if (t > 1.0)
+            {
                 real_fuel_v = 42.0 * log10(t - 1.0) + 10.0;
                 real_rpm_1 = 23000.0 * log10(t - 1.0) + 20000.0;
                 real_rpm_2 = 23000.0 * log10(t - 1.0) + 20000.0;
@@ -82,7 +91,8 @@ void Simulator::update()
                 real_egt2 = 900.0 * log10(t - 1.0) + 20.0;
             }
 
-            if (real_rpm_1 >= 40000 * 0.95) {
+            if (real_rpm_1 >= 40000 * 0.95)
+            {
                 current_state = EngineState::RUNNING;
                 record_n = real_rpm_1;
                 record_egt = real_egt1;
@@ -104,14 +114,16 @@ void Simulator::update()
     }
     case EngineState::STOPPING:
         real_fuel_v = 0;
-        if (phase_timer >= 10.0) {
+        if (phase_timer >= 10.0)
+        {
             real_rpm_1 = 0;
             real_rpm_2 = 0;
             real_egt1 = 20.0;
             real_egt2 = 20.0;
             current_state = EngineState::OFF;
         }
-        else {
+        else
+        {
             double base = 0.6;
             real_rpm_1 = record_n * std::pow(base, phase_timer);
             real_rpm_2 = real_rpm_1;
@@ -217,32 +229,36 @@ void Simulator::update()
 
 void Simulator::addDash()
 {
-    if (current_state == EngineState::RUNNING) {
+    if (current_state == EngineState::RUNNING)
+    {
         record_fuel_v += 1.0;
         double jump = 0.03 + (rand() % 201) / 10000.0;
         record_n = record_n * (1.0 + jump);
         record_egt = record_egt * (1.0 + jump);
-        if (record_n > 50000) record_n = 50000;
+        if (record_n > 50000)
+            record_n = 50000;
     }
 }
 
 void Simulator::reduceDash()
 {
-    if (current_state == EngineState::RUNNING) {
+    if (current_state == EngineState::RUNNING)
+    {
         record_fuel_v -= 1.0;
-        if (record_fuel_v < 0) record_fuel_v = 0;
+        if (record_fuel_v < 0)
+            record_fuel_v = 0;
         double jump = 0.03 + (rand() % 201) / 10000.0;
         record_n = record_n * (1.0 - jump);
         record_egt = record_egt * (1.0 - jump);
-        if (record_n < 0) record_n = 0;
+        if (record_n < 0)
+            record_n = 0;
     }
 }
 
 bool Simulator::isStabilized()
 {
-    return (current_state == EngineState::RUNNING &&
-        eng_data.rpm_1 >= max_rpm * 0.95 &&
-        eng_data.rpm_2 >= max_rpm * 0.95);
+    return (current_state == EngineState::RUNNING && eng_data.rpm_1 >= max_rpm * 0.95 &&
+            eng_data.rpm_2 >= max_rpm * 0.95);
 }
 
 EngineState Simulator::getState()
