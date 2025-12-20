@@ -7,5 +7,5 @@ public:
 	EICAS();
 	~EICAS();
 
-	void judge();
+	ErrorType judge(const EngineData& data);
 };

@@ -135,34 +135,68 @@ void Simulator::update()
     switch (error_type)
     {
     case ErrorType::NONE:
+        eng_data.is_N_sensor_valid[0] = true;
+        eng_data.is_N_sensor_valid[1] = true;
+        eng_data.is_N_sensor_valid[2] = true;
+        eng_data.is_N_sensor_valid[3] = true;
+        eng_data.is_EGT_sensor_valid[0] = true;
+        eng_data.is_EGT_sensor_valid[1] = true;
+        eng_data.is_EGT_sensor_valid[2] = true;
+        eng_data.is_EGT_sensor_valid[3] = true;
         break;
     case ErrorType::SENSOR_N_ONE:
+        eng_data.is_N_sensor_valid[0] = false;
         break;
     case ErrorType::SENSOR_N_TWO:
+        eng_data.rpm_1 = -1.0;
+        eng_data.is_N_sensor_valid[0] = false;
+        eng_data.is_N_sensor_valid[1] = false;
         break;
     case ErrorType::SENSOR_EGT_ONE:
+        eng_data.is_EGT_sensor_valid[0] = false;
         break;
     case ErrorType::SENSOR_EGT_TWO:
+        eng_data.EGT1_temp = -100.0;
+        eng_data.is_EGT_sensor_valid[0] = false;
+        eng_data.is_EGT_sensor_valid[1] = false;
         break;
     case ErrorType::SENSOR_ALL:
+        eng_data.EGT1_temp = -100.0;
+        eng_data.EGT1_temp = -100.0;
+        eng_data.is_EGT_sensor_valid[0] = false;
+        eng_data.is_EGT_sensor_valid[1] = false;
+        eng_data.is_EGT_sensor_valid[2] = false;
+        eng_data.is_EGT_sensor_valid[3] = false;
         break;
     case ErrorType::SENSOR_FUEL:
+        eng_data.Fuel_C = -1000.0;
+        eng_data.is_Fuel_valid = false;
         break;
     case ErrorType::OVERSPEED_N1_1:
+        eng_data.rpm_1 = 42400.0;
+        N1 = 106.0;
         break;
     case ErrorType::OVERSPEED_N1_2:
+        eng_data.rpm_1 = 50000.0;
+        N1 = 125.0;
         break;
     case ErrorType::OVERHEAT_EGT_1:
+        eng_data.EGT1_temp = 900.0;
         break;
     case ErrorType::OVERHEAT_EGT_2:
+        eng_data.EGT2_temp = 1050.0;
         break;
     case ErrorType::OVERHEAT_EGT_3:
+        eng_data.EGT1_temp = 1000.0;
         break;
     case ErrorType::OVERHEAT_EGT_4:
+        eng_data.EGT2_temp = 1250.0;
         break;
     case ErrorType::LOW_FUEL:
+        eng_data.Fuel_C = 500.0;
         break;
     case ErrorType::OVERSPEED_FUEL:
+        eng_data.Fuel_V = 55.0;
         break;
     default:
         break;

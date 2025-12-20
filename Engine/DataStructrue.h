@@ -41,8 +41,8 @@ struct EngineData {
     double Fuel_V;     // 燃油流速
 
     // 传感器状态标记 (用于模拟故障)
-    bool is_N_sensor_valid[2];   // 两个转速传感器是否正常
-    bool is_EGT_sensor_valid[2]; // 两个EGT传感器是否正常
+    bool is_N_sensor_valid[4];   // 两个转速传感器是否正常
+    bool is_EGT_sensor_valid[4]; // 两个EGT传感器是否正常
     bool is_Fuel_valid;
 
     // 当前计算出的警告信息
