@@ -1,4 +1,5 @@
 #include "Simulator.h"
+#include "EICAS.h"
 #include "UI.h"
 #include "Logger.h"
 #include "Timer.h"
@@ -7,6 +8,7 @@ int main() {
 
     srand((unsigned int)time(0));
     // 1. 初始化各模块
+    EICAS eicas;
     Simulator sim;
     UI ui;
     Logger logger;
@@ -36,6 +38,7 @@ int main() {
             // 记录日志 (题目要求每 5ms 记录一次)
             // 获取当前仿真时间
             logger.log(timer.getSimulationTime(), sim.getData());
+            ErrorType error = eicas.judge(sim.getData());
         }
 
         // --- D. 渲染画面 ---
