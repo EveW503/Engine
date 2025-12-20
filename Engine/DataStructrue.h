@@ -17,6 +17,21 @@ enum class AlertLevel {
     INVALID     // 无效值 (--)
 };
 
+enum class ErrorType {
+    NONE = 0,
+    // --- 传感器故障 ---
+    SENSOR_N_ONE, SENSOR_N_TWO,
+    SENSOR_EGT_ONE, SENSOR_EGT_TWO,
+    SENSOR_ALL,
+    SENSOR_FUEL,
+    // --- 超限故障 ---
+    OVERSPEED_N1_1, OVERSPEED_N1_2,
+    OVERHEAT_EGT_1, OVERHEAT_EGT_2,
+    OVERHEAT_EGT_3, OVERHEAT_EGT_4,
+    //FUEL
+    LOW_FUEL,OVERSPEED_FUEL,
+};
+
 struct EngineData {
     double rpm_1;
     double rpm_2;

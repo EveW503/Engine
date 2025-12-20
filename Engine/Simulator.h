@@ -8,6 +8,7 @@ private:
 	EngineData eng_data;
 	double phase_timer; // 当前阶段运行了多久
 	EngineState current_state;
+	ErrorType error_type;
 
 	double N1;
 	double N2;// 转速

@@ -6,6 +6,7 @@ Simulator::Simulator()
 {
     phase_timer = 0.0;
     current_state = EngineState::OFF;
+    error_type = ErrorType::NONE;
     N1 = 0;
     N2 = 0;
     eng_data.rpm_1 = 0;
@@ -130,6 +131,42 @@ void Simulator::update()
 
     N1 = (eng_data.rpm_1 / max_rpm) * 100.0;
     N2 = (eng_data.rpm_2 / max_rpm) * 100.0;
+
+    switch (error_type)
+    {
+    case ErrorType::NONE:
+        break;
+    case ErrorType::SENSOR_N_ONE:
+        break;
+    case ErrorType::SENSOR_N_TWO:
+        break;
+    case ErrorType::SENSOR_EGT_ONE:
+        break;
+    case ErrorType::SENSOR_EGT_TWO:
+        break;
+    case ErrorType::SENSOR_ALL:
+        break;
+    case ErrorType::SENSOR_FUEL:
+        break;
+    case ErrorType::OVERSPEED_N1_1:
+        break;
+    case ErrorType::OVERSPEED_N1_2:
+        break;
+    case ErrorType::OVERHEAT_EGT_1:
+        break;
+    case ErrorType::OVERHEAT_EGT_2:
+        break;
+    case ErrorType::OVERHEAT_EGT_3:
+        break;
+    case ErrorType::OVERHEAT_EGT_4:
+        break;
+    case ErrorType::LOW_FUEL:
+        break;
+    case ErrorType::OVERSPEED_FUEL:
+        break;
+    default:
+        break;
+    }
 }
 
 void Simulator::addDash()
