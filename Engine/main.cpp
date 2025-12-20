@@ -60,9 +60,10 @@ int main() {
         // --- C. EICAS 逻辑判定 (核心功能) ---
         // 获取模拟器的原始数据
         EngineData rawData = sim.getData();
+        EngineState eng_state = sim.getState();
 
         // EICAS 进行独立判定 (不依赖 Simulator 的 error_type，只看数据)
-        ErrorType detectedError = eicas.judge(rawData);
+        ErrorType detectedError = eicas.judge(rawData, eng_state);
 
         // --- D. 绘图 (闭环显示) ---
         // 将 EICAS 判定出的 detectedError 传给 UI 显示
