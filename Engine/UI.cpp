@@ -118,19 +118,19 @@ UI::UI() {
     // --- 3. 初始化故障按钮名称 (对应 main.cpp 的逻辑) ---
     // 注意：这个顺序必须严格对应 main.cpp 中 types[] 数组的顺序
     static const wchar_t* names[] = {
-        _T("L N1 Fail"),    // 0: SENSOR_N_ONE
-        _T("R N1 Fail"),    // 1: SENSOR_N_TWO
-        _T("L EGT Fail"),   // 2: SENSOR_EGT_ONE
-        _T("R EGT Fail"),   // 3: SENSOR_EGT_TWO
+        _T("N1_1 Fail"),    // 0: SENSOR_N_ONE
+        _T("N1_ALL Fail"),    // 1: SENSOR_N_TWO
+        _T("EGT_1 Fail"),   // 2: SENSOR_EGT_ONE
+        _T("EGT_ALL Fail"),   // 3: SENSOR_EGT_TWO
         _T("Fuel Fail"),    // 4: SENSOR_FUEL
         _T("All Sens Fail"),// 5: SENSOR_ALL
         _T("Low Fuel"),     // 6: LOW_FUEL
-        _T("L N1 >105"),    // 7: OVERSPEED_N1_1
-        _T("R N1 >120"),    // 8: OVERSPEED_N1_2
-        _T("L EGT High"),   // 9: OVERHEAT_EGT_1
-        _T("R EGT High"),   // 10: OVERHEAT_EGT_2
-        _T("L EGT Crit"),   // 11: OVERHEAT_EGT_3
-        _T("R EGT Crit"),   // 12: OVERHEAT_EGT_4
+        _T("N1 >105"),    // 7: OVERSPEED_N1_1
+        _T("N1 >120"),    // 8: OVERSPEED_N1_2
+        _T("EGT WARN START"),   // 9: OVERHEAT_EGT_1
+        _T("EGT ERROR START"),   // 10: OVERHEAT_EGT_2
+        _T("EGT WARN RUN"),   // 11: OVERHEAT_EGT_3
+        _T("EGT ERROR RUN"),   // 12: OVERHEAT_EGT_4
         _T("Fuel Leak")     // 13: OVERSPEED_FUEL
     };
 
@@ -238,17 +238,23 @@ void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF h
     outtextxy(r.left + (r.right - r.left - w) / 2, r.top + (r.bottom - r.top - h) / 2, text.c_str());
 }
 
-void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit) {
-    TCHAR buf[64];
-    _stprintf_s(buf, _T("%.1f %s"), value, unit.c_str());
-
+void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool isValid) {
     settextcolor(COLOR_TEXT); // 标签灰
     settextstyle(18, 0, _T("Consolas"));
     outtextxy(x, y, label.c_str());
 
-    // 【核心修改3】燃油数据颜色改为白色 (COLOR_NORMAL)，与 N1/EGT 的正常态保持一致
-    settextcolor(COLOR_NORMAL);
-    outtextxy(x + 100, y, buf);
+    // 如果无效，显示灰色的 "---"
+    if (!isValid) {
+        settextcolor(RGB(80, 80, 80)); // 与 drawGauge 的无效色保持一致
+        outtextxy(x + 100, y, _T("---"));
+    }
+    else {
+        // 正常显示数值
+        TCHAR buf[64];
+        _stprintf_s(buf, _T("%.1f %s"), value, unit.c_str());
+        settextcolor(COLOR_NORMAL);
+        outtextxy(x + 100, y, buf);
+    }
 }
 
 void UI::draw(double time, const EngineData& data, EngineState state,
@@ -265,60 +271,106 @@ void UI::draw(double time, const EngineData& data, EngineState state,
     _stprintf_s(timeBuf, _T("T+ %.1f s"), time);
     outtextxy(850, 20, timeBuf);
 
-    // --- 状态计算逻辑 (保持原样) ---
-    int statusN1_L = 0; if (N1 > 120) statusN1_L = 2; else if (N1 > 105) statusN1_L = 1;
-    int statusN1_R = 0; if (N2 > 120) statusN1_R = 2; else if (N2 > 105) statusN1_R = 1;
-
-    int statusEGT_L = 0;
-    int statusEGT_R = 0;
-    if (state == EngineState::STARTING) {
-        if (data.EGT1_temp > 1000) statusEGT_L = 2; else if (data.EGT1_temp > 850) statusEGT_L = 1;
-        if (data.EGT2_temp > 1000) statusEGT_R = 2; else if (data.EGT2_temp > 850) statusEGT_R = 1;
+    // --- 1. 计算 N1 状态 (增加传感器有效性检查) ---
+    // 左发 N1 (索引 0, 1)
+    int statusN1_L = 0;
+    // 如果该发动机的两个传感器都坏了，则显示无效
+    if (!data.is_N_sensor_valid[0] && !data.is_N_sensor_valid[1]) {
+        statusN1_L = -1; // -1 代表显示 "---"
     }
     else {
-        if (data.EGT1_temp > 1100) statusEGT_L = 2; else if (data.EGT1_temp > 950) statusEGT_L = 1;
-        if (data.EGT2_temp > 1100) statusEGT_R = 2; else if (data.EGT2_temp > 950) statusEGT_R = 1;
+        if (N1 > 120) statusN1_L = 2;
+        else if (N1 > 105) statusN1_L = 1;
+        else statusN1_L = 0;
     }
 
-    // --- 绘制仪表 (保持原样) ---
+    // 右发 N1 (索引 2, 3)
+    int statusN1_R = 0;
+    if (!data.is_N_sensor_valid[2] && !data.is_N_sensor_valid[3]) {
+        statusN1_R = -1;
+    }
+    else {
+        if (N2 > 120) statusN1_R = 2;
+        else if (N2 > 105) statusN1_R = 1;
+        else statusN1_R = 0;
+    }
+
+    // --- 2. 计算 EGT 状态 (增加传感器有效性检查) ---
+    // 左发 EGT (索引 0, 1)
+    int statusEGT_L = 0;
+    if (!data.is_EGT_sensor_valid[0] && !data.is_EGT_sensor_valid[1]) {
+        statusEGT_L = -1;
+    }
+    else {
+        if (state == EngineState::STARTING) {
+            if (data.EGT1_temp > 1000) statusEGT_L = 2;
+            else if (data.EGT1_temp > 850) statusEGT_L = 1;
+        }
+        else {
+            if (data.EGT1_temp > 1100) statusEGT_L = 2;
+            else if (data.EGT1_temp > 950) statusEGT_L = 1;
+        }
+    }
+
+    // 右发 EGT (索引 2, 3)
+    int statusEGT_R = 0;
+    if (!data.is_EGT_sensor_valid[2] && !data.is_EGT_sensor_valid[3]) {
+        statusEGT_R = -1;
+    }
+    else {
+        if (state == EngineState::STARTING) {
+            if (data.EGT2_temp > 1000) statusEGT_R = 2;
+            else if (data.EGT2_temp > 850) statusEGT_R = 1;
+        }
+        else {
+            if (data.EGT2_temp > 1100) statusEGT_R = 2;
+            else if (data.EGT2_temp > 950) statusEGT_R = 1;
+        }
+    }
+
+    // --- 3. 绘制仪表 ---
     drawGauge(300, 200, 110, N1, 0, 125, _T("N1 % (L)"), statusN1_L);
     drawGauge(724, 200, 110, N2, 0, 125, _T("N1 % (R)"), statusN1_R);
     drawGauge(300, 420, 90, data.EGT1_temp, -5, 1200, _T("EGT °C (L)"), statusEGT_L);
     drawGauge(724, 420, 90, data.EGT2_temp, -5, 1200, _T("EGT °C (R)"), statusEGT_R);
 
-    // --- 4. 绘制控制按钮 (上移后的位置) ---
-    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
-    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
-    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
-    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
-
-    // --- 5. 绘制故障按钮 (使用自定义名称) ---
+    // --- 4. 绘制按钮 (保持不变) ---
     for (int i = 0; i < 14; i++) {
-        // 使用成员变量 faultLabels 中的名字
         drawButton(faultButtons[i], faultLabels[i], COLOR_BTN_FAULT);
     }
 
+    // --- 5. 绘制 EICAS 列表 (保持不变) ---
     drawCASList(detectedErrors);
 
-    // --- 中央数据区 ---
+    // --- 6. 中央数据区 (修改燃油显示) ---
     int infoX = 430;
     int infoY = 250;
     setlinecolor(COLOR_GAUGE_FACE);
     rectangle(infoX - 10, infoY - 10, infoX + 230, infoY + 130);
-    drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"));
-    drawInfoBox(infoX, infoY + 30, _T("Fuel Qty"), data.Fuel_C, _T("kg"));
 
+    // 绘制 Fuel Flow (通常燃油故障主要指余量传感器，流速一般保持显示，除非题目特别说明)
+    drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"), true);
+
+    // 绘制 Fuel Qty (传入 is_Fuel_valid 标志)
+    drawInfoBox(infoX, infoY + 30, _T("Fuel Qty"), data.Fuel_C, _T("kg"), data.is_Fuel_valid);
+
+    // ... (状态灯和底部按钮代码保持不变) ...
     bool isStart = (state == EngineState::STARTING);
     setfillcolor(isStart ? COLOR_CAUTION : RGB(40, 40, 40));
     solidcircle(infoX + 50, infoY + 80, 8);
     settextcolor(isStart ? COLOR_CAUTION : RGB(100, 100, 100));
-    settextstyle(16, 0, _T("微软雅黑")); // 确保字体大小正确
+    settextstyle(16, 0, _T("微软雅黑"));
     outtextxy(infoX + 70, infoY + 70, _T("STARTING"));
 
     setfillcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(40, 40, 40));
     solidcircle(infoX + 50, infoY + 105, 8);
     settextcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(100, 100, 100));
     outtextxy(infoX + 70, infoY + 95, _T("RUNNING"));
+
+    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
+    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
+    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
+    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
 
     FlushBatchDraw();
 }

@@ -9,73 +9,86 @@ Simulator::Simulator()
     error_type = ErrorType::NONE;
     N1 = 0;
     N2 = 0;
+
+    // 初始化 EngineData
     eng_data.rpm_1 = 0;
     eng_data.rpm_2 = 0;
     eng_data.EGT1_temp = 20;
     eng_data.EGT2_temp = 20;
     eng_data.Fuel_V = 0;
-    eng_data.Fuel_C = 20000; // 满油
+    eng_data.Fuel_C = 20000;
+
+    // 【初始化】物理真值
+    real_Fuel_C = 20000.0;
+    real_Fuel_V = 0.0;
+    real_rpm_1 = 0.0;
+    real_rpm_2 = 0.0;
+    real_EGT1 = 20.0;
+    real_EGT2 = 20.0;
 }
 
 Simulator::~Simulator() {}
 
 void Simulator::startEngine()
 {
-	if (current_state == EngineState::OFF || current_state == EngineState::STOPPING) {
-		current_state = EngineState::STARTING;
-		phase_timer = 0.0; 
-	}
+    if (current_state == EngineState::OFF || current_state == EngineState::STOPPING) {
+        current_state = EngineState::STARTING;
+        phase_timer = 0.0;
+    }
 }
 
 void Simulator::stopEngine()
 {
-	if (current_state != EngineState::OFF) {
-		current_state = EngineState::STOPPING;
-		phase_timer = 0.0; 
-        record_N = eng_data.rpm_1;
-        record_EGT = eng_data.EGT1_temp;
-	}
-
+    if (current_state != EngineState::OFF) {
+        current_state = EngineState::STOPPING;
+        phase_timer = 0.0;
+        // 记录当前的物理真值作为基准，而不是记录可能已经出错的 eng_data
+        record_N = real_rpm_1;
+        record_EGT = real_EGT1;
+    }
 }
 
 void Simulator::update()
 {
-
     if (current_state == EngineState::STARTING || current_state == EngineState::STOPPING) {
         phase_timer += DT;
     }
 
-    if (eng_data.Fuel_C <= 0.0 && current_state != EngineState::STOPPING && current_state != EngineState::OFF) {
-        eng_data.Fuel_C = 0.0;
+    // 1. 物理计算：消耗真实燃油
+    if (real_Fuel_C > 0) {
+        real_Fuel_C -= real_Fuel_V * DT;
+    }
+
+    // 2. 物理判定：真实没油了才停车
+    if (real_Fuel_C <= 0.0 && current_state != EngineState::STOPPING && current_state != EngineState::OFF) {
+        real_Fuel_C = 0.0;
         stopEngine();
     }
 
+    // 3. 物理状态机更新 (全程使用 real_ 变量)
     switch (current_state) {
     case EngineState::STARTING:
         if (phase_timer <= 2.0) {
-            eng_data.rpm_1 += 50;
-            eng_data.rpm_2 += 50; 
-
-            eng_data.Fuel_V += 0.025;
-
+            // 累加逻辑，现在安全了
+            real_rpm_1 += 50;
+            real_rpm_2 += 50;
+            real_Fuel_V += 0.025;
         }
         else {
             double t = phase_timer;
-
             if (t > 1.0) {
-                eng_data.Fuel_V = 42.0 * log10(t - 1.0) + 10.0;
-                eng_data.rpm_1 = 23000.0 * log10(t - 1.0) + 20000.0;
-                eng_data.rpm_2 = 23000.0 * log10(t - 1.0) + 20000.0; // 暂时双发同步
-
-                eng_data.EGT1_temp = 900.0 * log10(t - 1.0) + 20.0;
-                eng_data.EGT2_temp = 900.0 * log10(t - 1.0) + 20.0;
+                real_Fuel_V = 42.0 * log10(t - 1.0) + 10.0;
+                real_rpm_1 = 23000.0 * log10(t - 1.0) + 20000.0;
+                real_rpm_2 = 23000.0 * log10(t - 1.0) + 20000.0;
+                real_EGT1 = 900.0 * log10(t - 1.0) + 20.0;
+                real_EGT2 = 900.0 * log10(t - 1.0) + 20.0;
             }
 
-            if (eng_data.rpm_1 >= 40000 * 0.95) {
+            if (real_rpm_1 >= 40000 * 0.95) {
                 current_state = EngineState::RUNNING;
-                record_N = eng_data.rpm_1;      // 记录当前转速作为基准
-                record_EGT = eng_data.EGT1_temp; // 记录当前温度作为基准
-                record_Fuel_V = eng_data.Fuel_V; // 记录当前油耗作为基准
+                record_N = real_rpm_1;
+                record_EGT = real_EGT1;
+                record_Fuel_V = real_Fuel_V;
             }
         }
         break;
@@ -84,72 +97,75 @@ void Simulator::update()
     {
         double noise = (rand() % 600 - 300) / 10000.0;
 
-        eng_data.rpm_1 = record_N * (1.0 + noise);
-        eng_data.rpm_2 = eng_data.rpm_1; // 双发同步
-
-        eng_data.EGT1_temp = record_EGT * (1.0 + noise);
-        eng_data.EGT2_temp = record_EGT * (1.0 + noise);
-
-        // 燃油流速在稳态也稍微波动
-        // 假设基准流速是启动结束时的值 (大约 42*lg(something)+10)
-        // 这里简单给定一个稳态流速基准，比如 80
-        eng_data.Fuel_V = record_Fuel_V * (1.0 + noise);
+        real_rpm_1 = record_N * (1.0 + noise);
+        real_rpm_2 = real_rpm_1;
+        real_EGT1 = record_EGT * (1.0 + noise);
+        real_EGT2 = record_EGT * (1.0 + noise);
+        real_Fuel_V = record_Fuel_V * (1.0 + noise);
         break;
     }
     case EngineState::STOPPING:
-        eng_data.Fuel_V = 0;
-
+        real_Fuel_V = 0;
         if (phase_timer >= 10.0) {
-            eng_data.rpm_1 = 0;
-            eng_data.rpm_2 = 0;
-            eng_data.EGT1_temp = 20.0;
-            eng_data.EGT2_temp = 20.0;
+            real_rpm_1 = 0;
+            real_rpm_2 = 0;
+            real_EGT1 = 20.0;
+            real_EGT2 = 20.0;
             current_state = EngineState::OFF;
         }
         else {
-           
             double base = 0.6;
-
-            eng_data.rpm_1 = record_N * std::pow(base, phase_timer);
-            eng_data.rpm_2 = eng_data.rpm_1; // 双发同步
-
-            eng_data.EGT1_temp = (record_EGT - 20.0) * std::pow(base, phase_timer) + 20.0;
-            eng_data.EGT2_temp = (record_EGT - 20.0) * std::pow(base, phase_timer) + 20.0;
+            real_rpm_1 = record_N * std::pow(base, phase_timer);
+            real_rpm_2 = real_rpm_1;
+            real_EGT1 = (record_EGT - 20.0) * std::pow(base, phase_timer) + 20.0;
+            real_EGT2 = (record_EGT - 20.0) * std::pow(base, phase_timer) + 20.0;
         }
         break;
     case EngineState::OFF:
-        eng_data.rpm_1 = 0.0;
-        eng_data.rpm_2 = 0.0;
-        eng_data.EGT1_temp = 20.0;
-        eng_data.EGT2_temp = 20.0;
-        eng_data.Fuel_V = 0.0;
+        real_rpm_1 = 0.0;
+        real_rpm_2 = 0.0;
+        real_EGT1 = 20.0;
+        real_EGT2 = 20.0;
+        real_Fuel_V = 0.0;
         break;
     }
 
-    if (eng_data.Fuel_C > 0) {
-        eng_data.Fuel_C -= eng_data.Fuel_V * DT;
-    }
+    // --- 【关键同步步骤】 ---
+    // 将计算好的“物理真值”同步给“传感器读数”
+    // 这是在应用任何故障之前的基础数据
+    eng_data.Fuel_C = real_Fuel_C;
+    eng_data.Fuel_V = real_Fuel_V;
+    eng_data.rpm_1 = real_rpm_1;
+    eng_data.rpm_2 = real_rpm_2;
+    eng_data.EGT1_temp = real_EGT1;
+    eng_data.EGT2_temp = real_EGT2;
 
+    // 计算 N1, N2 百分比 (用于 UI 和判断)
     N1 = (eng_data.rpm_1 / max_rpm) * 100.0;
     N2 = (eng_data.rpm_2 / max_rpm) * 100.0;
 
+    // 默认传感器都是好的
+    eng_data.is_N_sensor_valid[0] = true;
+    eng_data.is_N_sensor_valid[1] = true;
+    eng_data.is_N_sensor_valid[2] = true;
+    eng_data.is_N_sensor_valid[3] = true;
+    eng_data.is_EGT_sensor_valid[0] = true;
+    eng_data.is_EGT_sensor_valid[1] = true;
+    eng_data.is_EGT_sensor_valid[2] = true;
+    eng_data.is_EGT_sensor_valid[3] = true;
+    eng_data.is_Fuel_valid = true;
+
+    // 4. 故障注入：只修改 eng_data (传感器读数)，不影响 next frame 的物理计算
     switch (error_type)
     {
     case ErrorType::NONE:
-        eng_data.is_N_sensor_valid[0] = true;
-        eng_data.is_N_sensor_valid[1] = true;
-        eng_data.is_N_sensor_valid[2] = true;
-        eng_data.is_N_sensor_valid[3] = true;
-        eng_data.is_EGT_sensor_valid[0] = true;
-        eng_data.is_EGT_sensor_valid[1] = true;
-        eng_data.is_EGT_sensor_valid[2] = true;
-        eng_data.is_EGT_sensor_valid[3] = true;
         break;
     case ErrorType::SENSOR_N_ONE:
         eng_data.is_N_sensor_valid[0] = false;
         break;
     case ErrorType::SENSOR_N_TWO:
         eng_data.rpm_1 = -1.0;
+        N1 = -0.0;// 只改读数，real_rpm_1 保持正常
         eng_data.is_N_sensor_valid[0] = false;
         eng_data.is_N_sensor_valid[1] = false;
         break;
@@ -157,24 +173,26 @@ void Simulator::update()
         eng_data.is_EGT_sensor_valid[0] = false;
         break;
     case ErrorType::SENSOR_EGT_TWO:
-        eng_data.EGT1_temp = -100.0;
+        eng_data.EGT1_temp = -50.0; // 只改读数
         eng_data.is_EGT_sensor_valid[0] = false;
         eng_data.is_EGT_sensor_valid[1] = false;
         break;
     case ErrorType::SENSOR_ALL:
-        eng_data.EGT1_temp = -100.0;
-        eng_data.EGT1_temp = -100.0;
+        eng_data.EGT1_temp = -500.0;
+        eng_data.EGT2_temp = -500.0;
         eng_data.is_EGT_sensor_valid[0] = false;
         eng_data.is_EGT_sensor_valid[1] = false;
         eng_data.is_EGT_sensor_valid[2] = false;
         eng_data.is_EGT_sensor_valid[3] = false;
+        // 注意：转速传感器故障通常不直接改数值为 -1，而是依赖 is_valid 标记
+        // 但如果您之前的逻辑是双发失效停车，UI 可能会显示 ---
         break;
     case ErrorType::SENSOR_FUEL:
-        eng_data.Fuel_C = -1000.0;
+        eng_data.Fuel_C = -0.0; // 只改读数
         eng_data.is_Fuel_valid = false;
         break;
     case ErrorType::OVERSPEED_N1_1:
-        eng_data.rpm_1 = 42400.0;
+        eng_data.rpm_1 = 42400.0; // 模拟传感器读数偏高或测试用例
         N1 = 106.0;
         break;
     case ErrorType::OVERSPEED_N1_2:
@@ -194,10 +212,10 @@ void Simulator::update()
         eng_data.EGT2_temp = 1250.0;
         break;
     case ErrorType::LOW_FUEL:
-        eng_data.Fuel_C = 500.0;
+        eng_data.Fuel_C = 500.0; // 这里只改显示，模拟“燃油低”报警测试
         break;
     case ErrorType::OVERSPEED_FUEL:
-        eng_data.Fuel_V = 55.0;
+        eng_data.Fuel_V = 55.0; // 模拟高流量报警
         break;
     default:
         break;

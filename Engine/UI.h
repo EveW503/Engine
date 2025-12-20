@@ -20,7 +20,7 @@ public:
 private:
     void drawGauge(int x, int y, int radius, double val, double minVal, double maxVal, const std::wstring& label, int status);
     void drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hoverColor = 0);
-    void drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit);
+    void drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool isValid = true);
     void drawCASList(const std::vector<ErrorType>& errors);
 
 
