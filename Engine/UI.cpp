@@ -28,42 +28,56 @@ const double PI = 3.1415926535;
 
 UI::UI() {
     int centerX = 512;
-    int startY = 600;
-    btnIncRect = { centerX - 130, startY, centerX - 10, startY + 50 };
-    btnDecRect = { centerX - 130, startY + 60, centerX - 10, startY + 110 };
-    btnStartRect = { centerX + 10, startY, centerX + 130, startY + 50 };
-    btnStopRect = { centerX + 10, startY + 60, centerX + 130, startY + 110 };
 
-    // 【新增】初始化 14 个故障按钮 (放在屏幕最底部，2行7列)
-    // 按钮宽 80，高 30，间隔 10
-    int fBtnW = 100;
-    int fBtnH = 30;
-    int gap = 10;
-    int gridStartX = (1024 - (7 * fBtnW + 6 * gap)) / 2; // 居中计算
-    int gridStartY = 650; // 放在主按钮下方
+    // --- 1. 优化主控按钮布局 (上移) ---
+    // 原来 startY = 600，现在上移到 540，避开底部
+    int startY = 540;
 
-    ErrorType types[] = {
-        ErrorType::SENSOR_N_ONE, ErrorType::SENSOR_N_TWO,
-        ErrorType::SENSOR_EGT_ONE, ErrorType::SENSOR_EGT_TWO,
-        ErrorType::SENSOR_FUEL, ErrorType::SENSOR_ALL,
-        ErrorType::LOW_FUEL,
-        ErrorType::OVERSPEED_N1_1, ErrorType::OVERSPEED_N1_2,
-        ErrorType::OVERHEAT_EGT_1, ErrorType::OVERHEAT_EGT_2,
-        ErrorType::OVERHEAT_EGT_3, ErrorType::OVERHEAT_EGT_4,
-        ErrorType::OVERSPEED_FUEL
-    };
+    btnIncRect = { centerX - 130, startY,      centerX - 10,  startY + 45 };
+    btnDecRect = { centerX - 130, startY + 55, centerX - 10,  startY + 100 };
+    btnStartRect = { centerX + 10,  startY,      centerX + 130, startY + 45 };
+    btnStopRect = { centerX + 10,  startY + 55, centerX + 130, startY + 100 };
+
+    // --- 2. 优化故障按钮布局 (下移且更扁平) ---
+    // 放在屏幕最底部，留出间隔
+    int fBtnW = 120; // 稍微加宽一点以便显示文字
+    int fBtnH = 25;  // 稍微变矮
+    int gap = 8;
+    // 计算起始 X，让两行居中
+    int gridStartX = (1024 - (7 * fBtnW + 6 * gap)) / 2;
+    int gridStartY = 670; // 从 670 开始，与上方按钮有大约 70px 的安全距离
 
     for (int i = 0; i < 14; i++) {
-        faultTypes[i] = types[i]; // 保存映射关系
-
-        int row = i / 7; // 第几行 (0或1)
-        int col = i % 7; // 第几列 (0-6)
+        int row = i / 7;
+        int col = i % 7;
 
         int x = gridStartX + col * (fBtnW + gap);
         int y = gridStartY + row * (fBtnH + gap);
 
         faultButtons[i] = { x, y, x + fBtnW, y + fBtnH };
     }
+
+    // --- 3. 初始化故障按钮名称 (对应 main.cpp 的逻辑) ---
+    // 注意：这个顺序必须严格对应 main.cpp 中 types[] 数组的顺序
+    static const wchar_t* names[] = {
+        _T("L N1 Fail"),    // 0: SENSOR_N_ONE
+        _T("R N1 Fail"),    // 1: SENSOR_N_TWO
+        _T("L EGT Fail"),   // 2: SENSOR_EGT_ONE
+        _T("R EGT Fail"),   // 3: SENSOR_EGT_TWO
+        _T("Fuel Fail"),    // 4: SENSOR_FUEL
+        _T("All Sens Fail"),// 5: SENSOR_ALL
+        _T("Low Fuel"),     // 6: LOW_FUEL
+        _T("L N1 >105"),    // 7: OVERSPEED_N1_1
+        _T("R N1 >120"),    // 8: OVERSPEED_N1_2
+        _T("L EGT High"),   // 9: OVERHEAT_EGT_1
+        _T("R EGT High"),   // 10: OVERHEAT_EGT_2
+        _T("L EGT Crit"),   // 11: OVERHEAT_EGT_3
+        _T("R EGT Crit"),   // 12: OVERHEAT_EGT_4
+        _T("Fuel Leak")     // 13: OVERSPEED_FUEL
+    };
+
+    // 复制到成员变量（虽然这里可以直接用 static，但为了类结构清晰）
+    for (int i = 0; i < 14; i++) faultLabels[i] = names[i];
 }
 
 UI::~UI() {
@@ -147,13 +161,20 @@ void UI::drawGauge(int x, int y, int radius, double val, double minVal, double m
 
 void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hoverColor) {
     setfillcolor(color);
-    setlinecolor(WHITE);
-    setlinestyle(PS_SOLID, 2);
+    setlinecolor(WHITE); // 边框
+    setlinestyle(PS_SOLID, 1); // 细线边框，看起来更精致
     fillrectangle(r.left, r.top, r.right, r.bottom);
     rectangle(r.left, r.top, r.right, r.bottom);
 
     settextcolor(WHITE);
-    settextstyle(20, 0, _T("微软雅黑"));
+    // 动态调整字体：如果是故障按钮（高度较小），用小字体
+    if (r.bottom - r.top < 40) {
+        settextstyle(14, 0, _T("微软雅黑"));
+    }
+    else {
+        settextstyle(20, 0, _T("微软雅黑"));
+    }
+
     int w = textwidth(text.c_str());
     int h = textheight(text.c_str());
     outtextxy(r.left + (r.right - r.left - w) / 2, r.top + (r.bottom - r.top - h) / 2, text.c_str());
@@ -174,6 +195,7 @@ void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, cons
 
 void UI::draw(double time, const EngineData& data, EngineState state,
     bool isRunningLightOn, double N1, double N2, ErrorType detectedError) {
+
     setbkcolor(COLOR_BG);
     cleardevice();
 
@@ -185,59 +207,45 @@ void UI::draw(double time, const EngineData& data, EngineState state,
     _stprintf_s(timeBuf, _T("T+ %.1f s"), time);
     outtextxy(850, 20, timeBuf);
 
-    // --- 1. 计算 N1 状态颜色 ---
-    int statusN1_L = 0;
-    if (N1 > 120) statusN1_L = 2;
-    else if (N1 > 105) statusN1_L = 1;
-    else statusN1_L = 0;
+    // --- 状态计算逻辑 (保持原样) ---
+    int statusN1_L = 0; if (N1 > 120) statusN1_L = 2; else if (N1 > 105) statusN1_L = 1;
+    int statusN1_R = 0; if (N2 > 120) statusN1_R = 2; else if (N2 > 105) statusN1_R = 1;
 
-    int statusN1_R = 0;
-    if (N2 > 120) statusN1_R = 2;
-    else if (N2 > 105) statusN1_R = 1;
-    else statusN1_R = 0;
-
-    // --- 2. 计算 EGT 状态颜色 ---
     int statusEGT_L = 0;
     int statusEGT_R = 0;
-
     if (state == EngineState::STARTING) {
-        if (data.EGT1_temp > 1000) statusEGT_L = 2;
-        else if (data.EGT1_temp > 850) statusEGT_L = 1;
-
-        if (data.EGT2_temp > 1000) statusEGT_R = 2;
-        else if (data.EGT2_temp > 850) statusEGT_R = 1;
+        if (data.EGT1_temp > 1000) statusEGT_L = 2; else if (data.EGT1_temp > 850) statusEGT_L = 1;
+        if (data.EGT2_temp > 1000) statusEGT_R = 2; else if (data.EGT2_temp > 850) statusEGT_R = 1;
     }
     else {
-        if (data.EGT1_temp > 1100) statusEGT_L = 2;
-        else if (data.EGT1_temp > 950) statusEGT_L = 1;
-
-        if (data.EGT2_temp > 1100) statusEGT_R = 2;
-        else if (data.EGT2_temp > 950) statusEGT_R = 1;
+        if (data.EGT1_temp > 1100) statusEGT_L = 2; else if (data.EGT1_temp > 950) statusEGT_L = 1;
+        if (data.EGT2_temp > 1100) statusEGT_R = 2; else if (data.EGT2_temp > 950) statusEGT_R = 1;
     }
 
-    // --- 3. 绘制仪表 ---
+    // --- 绘制仪表 (保持原样) ---
     drawGauge(300, 200, 110, N1, 0, 125, _T("N1 % (L)"), statusN1_L);
     drawGauge(724, 200, 110, N2, 0, 125, _T("N1 % (R)"), statusN1_R);
-
     drawGauge(300, 420, 90, data.EGT1_temp, -5, 1200, _T("EGT °C (L)"), statusEGT_L);
     drawGauge(724, 420, 90, data.EGT2_temp, -5, 1200, _T("EGT °C (R)"), statusEGT_R);
 
-    settextstyle(16, 0, _T("Arial"));
+    // --- 4. 绘制控制按钮 (上移后的位置) ---
+    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
+    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
+    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
+    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
+
+    // --- 5. 绘制故障按钮 (使用自定义名称) ---
     for (int i = 0; i < 14; i++) {
-        // 简短的按钮标签 (比如 "Err 1")
-        TCHAR btnLabel[10];
-        _stprintf_s(btnLabel, _T("Fault %d"), i + 1);
-        drawButton(faultButtons[i], btnLabel, COLOR_BTN_FAULT);
+        // 使用成员变量 faultLabels 中的名字
+        drawButton(faultButtons[i], faultLabels[i], COLOR_BTN_FAULT);
     }
 
-    // --- 绘制 EICAS 警告信息 (输出) ---
-    // 这里传入的是 EICAS::judge 判断后的结果
     drawCASMessage(detectedError);
 
-    // --- 4. 中央数据 & 状态灯 ---
+    // --- 中央数据区 ---
     int infoX = 430;
     int infoY = 250;
-    setlinecolor(COLOR_GAUGE_FACE); // 边框也用深灰
+    setlinecolor(COLOR_GAUGE_FACE);
     rectangle(infoX - 10, infoY - 10, infoX + 230, infoY + 130);
     drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"));
     drawInfoBox(infoX, infoY + 30, _T("Fuel Qty"), data.Fuel_C, _T("kg"));
@@ -246,18 +254,13 @@ void UI::draw(double time, const EngineData& data, EngineState state,
     setfillcolor(isStart ? COLOR_CAUTION : RGB(40, 40, 40));
     solidcircle(infoX + 50, infoY + 80, 8);
     settextcolor(isStart ? COLOR_CAUTION : RGB(100, 100, 100));
+    settextstyle(16, 0, _T("微软雅黑")); // 确保字体大小正确
     outtextxy(infoX + 70, infoY + 70, _T("STARTING"));
 
     setfillcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(40, 40, 40));
     solidcircle(infoX + 50, infoY + 105, 8);
     settextcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(100, 100, 100));
     outtextxy(infoX + 70, infoY + 95, _T("RUNNING"));
-
-    // --- 5. 底部按钮 ---
-    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
-    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
-    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
-    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
 
     FlushBatchDraw();
 }

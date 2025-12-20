@@ -20,16 +20,22 @@ enum class AlertLevel {
 enum class ErrorType {
     NONE = 0,
     // --- 传感器故障 ---
-    SENSOR_N_ONE, SENSOR_N_TWO,
-    SENSOR_EGT_ONE, SENSOR_EGT_TWO,
-    SENSOR_ALL,
-    SENSOR_FUEL,
+    SENSOR_N_ONE, //有一个转速传感器发生故障
+    SENSOR_N_TWO, //同一个发动机的两个转速传感器均发生故障
+    SENSOR_EGT_ONE, //有一个温度传感器发生故障
+    SENSOR_EGT_TWO, //同一个发动机的两个温度传感器均发生故障
+    SENSOR_ALL, //两个发动机的全部转速传感器或全部温度传感器发生故障
+    SENSOR_FUEL,//燃油余量传感器发生故障
     // --- 超限故障 ---
-    OVERSPEED_N1_1, OVERSPEED_N1_2,
-    OVERHEAT_EGT_1, OVERHEAT_EGT_2,
-    OVERHEAT_EGT_3, OVERHEAT_EGT_4,
+    OVERSPEED_N1_1, //有一个发动机的转速超过警戒值
+    OVERSPEED_N1_2, //有一个发动机的转速超过警告值
+    OVERHEAT_EGT_1, //在启动时有一个发动机排气温度超过警戒值
+    OVERHEAT_EGT_2, //在启动时有一个发动机排气温度超过警告值
+    OVERHEAT_EGT_3, //在稳态时有一个发动机排气温度超过警戒值
+    OVERHEAT_EGT_4, //在稳态时有一个发动机排气温度超过警告值
     //FUEL
-    LOW_FUEL,OVERSPEED_FUEL,
+    LOW_FUEL,//燃油余量小于500
+    OVERSPEED_FUEL,//燃油流速大于50
 };
 
 struct EngineData {

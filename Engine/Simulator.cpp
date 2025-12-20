@@ -16,6 +16,7 @@ Simulator::Simulator()
     eng_data.Fuel_V = 0;
     eng_data.Fuel_C = 20000; // ÂúÓÍ
 }
+
 Simulator::~Simulator() {}
 
 void Simulator::startEngine()
