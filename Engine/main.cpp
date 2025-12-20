@@ -57,8 +57,9 @@ int main() {
         // --- C. EICAS 逻辑判定 ---
         EngineData rawData = sim.getData();
         EngineState eng_state = sim.getState();
-        // 获取所有检测到的故障
-        std::vector<ErrorType> detectedErrors = eicas.judge(rawData, eng_state);
+
+        // 【修改】传入 timer.getSimulationTime()
+        std::vector<ErrorType> detectedErrors = eicas.judge(rawData, eng_state, timer.getSimulationTime());
 
         // --- 【新增】 自动停车逻辑 (Auto-Shutdown) ---
         // 题目要求：以下4种红色警告必须触发发动机停车

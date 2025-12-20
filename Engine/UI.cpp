@@ -346,7 +346,6 @@ void UI::draw(double time, const EngineData& data, EngineState state,
     int infoX = 430;
     int infoY = 250;
     setlinecolor(COLOR_GAUGE_FACE);
-    rectangle(infoX - 10, infoY - 10, infoX + 230, infoY + 130);
 
     // 绘制 Fuel Flow (通常燃油故障主要指余量传感器，流速一般保持显示，除非题目特别说明)
     drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"), true);
