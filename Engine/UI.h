@@ -11,28 +11,23 @@ public:
 
     void init();
     void draw(double time, const EngineData& data, EngineState state,
-        bool isRunningLightOn, double N1, double N2, const std::vector<ErrorType>& detectedErrors);
+        bool is_running_light_on, double n1, double n2, const std::vector<ErrorType>& detected_errors);
 
     std::wstring getErrorString(ErrorType error);
 
     int handleInput();
 
 private:
-    void drawGauge(int x, int y, int radius, double val, double minVal, double maxVal, const std::wstring& label, int status);
-    void drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hoverColor = 0);
-    void drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool isValid = true);
+    void drawGauge(int x, int y, int radius, double val, double min_val, double max_val, const std::wstring& label, int status);
+    void drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hover_color = 0);
+    void drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool is_valid = true);
     void drawCASList(const std::vector<ErrorType>& errors);
 
+    RECT btn_start_rect;
+    RECT btn_stop_rect;
+    RECT btn_inc_rect;
+    RECT btn_dec_rect;
 
-    // 现有按钮区域
-    RECT btnStartRect;
-    RECT btnStopRect;
-    RECT btnIncRect;
-    RECT btnDecRect;
-
-    // 故障注入按钮区域
-    RECT faultButtons[14];
-
-    // 【新增】故障按钮的文字标签数组
-    const wchar_t* faultLabels[14];
+    RECT fault_buttons[14];
+    const wchar_t* fault_labels[14];
 };

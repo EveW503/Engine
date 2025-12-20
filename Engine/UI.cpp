@@ -2,54 +2,48 @@
 #include <cstdio>
 #include <cmath>
 
-// --- 航空仪表配色方案 (优化版) ---
-#define COLOR_BG           RGB(30, 30, 35)       // 1. 全局背景 (深黑)
-#define COLOR_GAUGE_FACE   RGB(60, 60, 65)       // 2. 表盘底座 (稍亮灰)
-#define COLOR_TRACK        RGB(20, 20, 20)       // 3. 量程槽 (纯黑)
+#define COLOR_BG           RGB(30, 30, 35)
+#define COLOR_GAUGE_FACE   RGB(60, 60, 65)
+#define COLOR_TRACK        RGB(20, 20, 20)
 
-// 状态颜色
-#define COLOR_NORMAL       RGB(255, 255, 255)    // 正常：亮白 (题目要求)
-#define COLOR_CAUTION      RGB(255, 176, 0)      // 警戒：琥珀 (题目要求)
-#define COLOR_WARNING      RGB(255, 0, 0)        // 警告：红 (题目要求)
+#define COLOR_NORMAL       RGB(255, 255, 255)
+#define COLOR_CAUTION      RGB(255, 176, 0)
+#define COLOR_WARNING      RGB(255, 0, 0)
 
-#define COLOR_TEXT         RGB(220, 220, 220)    // 普通文本灰
-// #define COLOR_TEXT_HL   RGB(0, 255, 255)      // (移除青色，改用 COLOR_NORMAL 保持一致)
+#define COLOR_TEXT         RGB(220, 220, 220)
 
 #define COLOR_BTN_START    RGB(0, 120, 60)
 #define COLOR_BTN_STOP     RGB(180, 40, 40)
 #define COLOR_BTN_INC      RGB(0, 100, 150)
 #define COLOR_BTN_DEC      RGB(150, 100, 0)
 
-#define COLOR_BTN_FAULT    RGB(100, 40, 40)   // 故障按钮底色(暗红)
-#define COLOR_CAS_BG       RGB(20, 20, 20)    // 消息区背景
-#define COLOR_CAS_TEXT     RGB(255, 50, 50)   // 消息文字红
+#define COLOR_BTN_FAULT    RGB(100, 40, 40)
+#define COLOR_CAS_BG       RGB(20, 20, 20)
+#define COLOR_CAS_TEXT     RGB(255, 50, 50)
 
 const double PI = 3.1415926535;
 
 COLORREF getAlertColor(ErrorType error) {
     switch (error) {
-        // --- 红色警告 (RED) ---
     case ErrorType::SENSOR_ALL:
-    case ErrorType::SENSOR_FUEL: // 无效值
-    case ErrorType::OVERSPEED_N1_2: // >120%
-    case ErrorType::OVERHEAT_EGT_2: // 启动红
-    case ErrorType::OVERHEAT_EGT_4: // 稳态红
-        return RGB(255, 50, 50); // 鲜红
+    case ErrorType::SENSOR_FUEL:
+    case ErrorType::OVERSPEED_N1_2:
+    case ErrorType::OVERHEAT_EGT_2:
+    case ErrorType::OVERHEAT_EGT_4:
+        return RGB(255, 50, 50);
 
-        // --- 琥珀色警告 (AMBER) ---
-    case ErrorType::SENSOR_N_TWO: // 单发失效
+    case ErrorType::SENSOR_N_TWO:
     case ErrorType::SENSOR_EGT_TWO:
     case ErrorType::LOW_FUEL:
     case ErrorType::OVERSPEED_FUEL:
-    case ErrorType::OVERSPEED_N1_1: // >105%
-    case ErrorType::OVERHEAT_EGT_1: // 启动黄
-    case ErrorType::OVERHEAT_EGT_3: // 稳态黄
-        return RGB(255, 176, 0); // 琥珀色
+    case ErrorType::OVERSPEED_N1_1:
+    case ErrorType::OVERHEAT_EGT_1:
+    case ErrorType::OVERHEAT_EGT_3:
+        return RGB(255, 176, 0);
 
-        // --- 白色咨询 (WHITE) ---
-    case ErrorType::SENSOR_N_ONE: // 单个传感器
+    case ErrorType::SENSOR_N_ONE:
     case ErrorType::SENSOR_EGT_ONE:
-        return RGB(200, 200, 200); // 灰白
+        return RGB(200, 200, 200);
 
     default:
         return RGB(255, 255, 255);
@@ -58,84 +52,65 @@ COLORREF getAlertColor(ErrorType error) {
 
 std::wstring UI::getErrorString(ErrorType error) {
     switch (error) {
-        // 传感器
-    case ErrorType::SENSOR_N_ONE:   return _T("ADVISORY: N1 SENSOR FAULT"); // 单个坏，白色
-    case ErrorType::SENSOR_N_TWO:   return _T("CAUTION: ENG N1 SENSOR FAIL"); // 单发全坏，琥珀
+    case ErrorType::SENSOR_N_ONE:   return _T("ADVISORY: N1 SENSOR FAULT");
+    case ErrorType::SENSOR_N_TWO:   return _T("CAUTION: ENG N1 SENSOR FAIL");
     case ErrorType::SENSOR_EGT_ONE: return _T("ADVISORY: EGT SENSOR FAULT");
     case ErrorType::SENSOR_EGT_TWO: return _T("CAUTION: ENG EGT SENSOR FAIL");
     case ErrorType::SENSOR_FUEL:    return _T("WARNING: FUEL SENSOR FAIL");
-    case ErrorType::SENSOR_ALL:     return _T("WARNING: DUAL ENG FAIL"); // 双发全坏
+    case ErrorType::SENSOR_ALL:     return _T("WARNING: DUAL ENG FAIL");
 
-        // 燃油
     case ErrorType::LOW_FUEL:       return _T("CAUTION: LOW FUEL QTY");
     case ErrorType::OVERSPEED_FUEL: return _T("CAUTION: HIGH FUEL FLOW");
 
-        // N1 转速
-    case ErrorType::OVERSPEED_N1_1: return _T("CAUTION: N1 OVERSPEED"); // 105%
-    case ErrorType::OVERSPEED_N1_2: return _T("WARNING: ENG OVERSPEED"); // 120%
+    case ErrorType::OVERSPEED_N1_1: return _T("CAUTION: N1 OVERSPEED");
+    case ErrorType::OVERSPEED_N1_2: return _T("WARNING: ENG OVERSPEED");
 
-        // EGT 温度
-    case ErrorType::OVERHEAT_EGT_1: return _T("CAUTION: EGT OVERHEAT"); // 启动黄
-    case ErrorType::OVERHEAT_EGT_2: return _T("WARNING: EGT CRITICAL"); // 启动红
-    case ErrorType::OVERHEAT_EGT_3: return _T("CAUTION: EGT OVERHEAT"); // 稳态黄
-    case ErrorType::OVERHEAT_EGT_4: return _T("WARNING: EGT CRITICAL"); // 稳态红
+    case ErrorType::OVERHEAT_EGT_1: return _T("CAUTION: EGT OVERHEAT");
+    case ErrorType::OVERHEAT_EGT_2: return _T("WARNING: EGT CRITICAL");
+    case ErrorType::OVERHEAT_EGT_3: return _T("CAUTION: EGT OVERHEAT");
+    case ErrorType::OVERHEAT_EGT_4: return _T("WARNING: EGT CRITICAL");
 
     default: return _T("");
     }
 }
 
 UI::UI() {
-    int centerX = 512;
+    int center_x = 512;
+    int start_y = 540;
 
-    // --- 1. 优化主控按钮布局 (上移) ---
-    // 原来 startY = 600，现在上移到 540，避开底部
-    int startY = 540;
+    btn_inc_rect = { center_x - 130, start_y,      center_x - 10,  start_y + 45 };
+    btn_dec_rect = { center_x - 130, start_y + 55, center_x - 10,  start_y + 100 };
+    btn_start_rect = { center_x + 10,  start_y,      center_x + 130, start_y + 45 };
+    btn_stop_rect = { center_x + 10,  start_y + 55, center_x + 130, start_y + 100 };
 
-    btnIncRect = { centerX - 130, startY,      centerX - 10,  startY + 45 };
-    btnDecRect = { centerX - 130, startY + 55, centerX - 10,  startY + 100 };
-    btnStartRect = { centerX + 10,  startY,      centerX + 130, startY + 45 };
-    btnStopRect = { centerX + 10,  startY + 55, centerX + 130, startY + 100 };
-
-    // --- 2. 优化故障按钮布局 (下移且更扁平) ---
-    // 放在屏幕最底部，留出间隔
-    int fBtnW = 120; // 稍微加宽一点以便显示文字
-    int fBtnH = 25;  // 稍微变矮
+    int f_btn_w = 120;
+    int f_btn_h = 25;
     int gap = 8;
-    // 计算起始 X，让两行居中
-    int gridStartX = (1024 - (7 * fBtnW + 6 * gap)) / 2;
-    int gridStartY = 670; // 从 670 开始，与上方按钮有大约 70px 的安全距离
+    int grid_start_x = (1024 - (7 * f_btn_w + 6 * gap)) / 2;
+    int grid_start_y = 670;
 
     for (int i = 0; i < 14; i++) {
         int row = i / 7;
         int col = i % 7;
 
-        int x = gridStartX + col * (fBtnW + gap);
-        int y = gridStartY + row * (fBtnH + gap);
+        int x = grid_start_x + col * (f_btn_w + gap);
+        int y = grid_start_y + row * (f_btn_h + gap);
 
-        faultButtons[i] = { x, y, x + fBtnW, y + fBtnH };
+        fault_buttons[i] = { x, y, x + f_btn_w, y + f_btn_h };
     }
 
-    // --- 3. 初始化故障按钮名称 (对应 main.cpp 的逻辑) ---
-    // 注意：这个顺序必须严格对应 main.cpp 中 types[] 数组的顺序
     static const wchar_t* names[] = {
-        _T("N1_1 Fail"),    // 0: SENSOR_N_ONE
-        _T("N1_ALL Fail"),    // 1: SENSOR_N_TWO
-        _T("EGT_1 Fail"),   // 2: SENSOR_EGT_ONE
-        _T("EGT_ALL Fail"),   // 3: SENSOR_EGT_TWO
-        _T("Fuel Fail"),    // 4: SENSOR_FUEL
-        _T("All Sens Fail"),// 5: SENSOR_ALL
-        _T("Low Fuel"),     // 6: LOW_FUEL
-        _T("N1 >105"),    // 7: OVERSPEED_N1_1
-        _T("N1 >120"),    // 8: OVERSPEED_N1_2
-        _T("EGT WARN START"),   // 9: OVERHEAT_EGT_1
-        _T("EGT ERROR START"),   // 10: OVERHEAT_EGT_2
-        _T("EGT WARN RUN"),   // 11: OVERHEAT_EGT_3
-        _T("EGT ERROR RUN"),   // 12: OVERHEAT_EGT_4
-        _T("Fuel Leak")     // 13: OVERSPEED_FUEL
+        _T("N1_1 Fail"), _T("N1_ALL Fail"),
+        _T("EGT_1 Fail"), _T("EGT_ALL Fail"),
+        _T("Fuel Fail"), _T("All Sens Fail"),
+        _T("Low Fuel"),
+        _T("N1 >105"), _T("N1 >120"),
+        _T("EGT WARN START"), _T("EGT ERROR START"),
+        _T("EGT WARN RUN"), _T("EGT ERROR RUN"),
+        _T("Fuel Leak")
     };
 
-    // 复制到成员变量（虽然这里可以直接用 static，但为了类结构清晰）
-    for (int i = 0; i < 14; i++) faultLabels[i] = names[i];
+    for (int i = 0; i < 14; i++) fault_labels[i] = names[i];
 }
 
 UI::~UI() {
@@ -147,12 +122,10 @@ void UI::init() {
     setbkmode(TRANSPARENT);
 }
 
-void UI::drawGauge(int x, int y, int radius, double val, double minVal, double maxVal, const std::wstring& label, int status) {
-    // 0. 如果无效，只显示占位符
+void UI::drawGauge(int x, int y, int radius, double val, double min_val, double max_val, const std::wstring& label, int status) {
     if (status == -1) {
         setfillcolor(COLOR_GAUGE_FACE);
         solidcircle(x, y, radius);
-        // 无效状态下，文字显示深灰色
         settextcolor(RGB(80, 80, 80));
         settextstyle(24, 0, _T("Consolas"));
         outtextxy(x - 20, y - 10, _T("---"));
@@ -162,70 +135,57 @@ void UI::drawGauge(int x, int y, int radius, double val, double minVal, double m
         return;
     }
 
-    // 确定颜色 (Bar 和 Text 共用此颜色)
-    COLORREF currentColor = COLOR_NORMAL;
-    if (status == 1) currentColor = COLOR_CAUTION;
-    if (status == 2) currentColor = COLOR_WARNING;
+    COLORREF current_color = COLOR_NORMAL;
+    if (status == 1) current_color = COLOR_CAUTION;
+    if (status == 2) current_color = COLOR_WARNING;
 
-    // 角度计算
-    double startAngle = 225;
-    double radStart = 225 * PI / 180.0;
-    double radEnd = (225 + 270) * PI / 180.0;
+    double rad_start = 225 * PI / 180.0;
+    double rad_end = (225 + 270) * PI / 180.0;
 
-    // --- 第1层：表盘底座 ---
     setfillcolor(COLOR_GAUGE_FACE);
     solidcircle(x, y, radius);
 
-    // --- 第2层：量程槽 ---
-    int trackRadius = radius * 0.9;
+    int track_radius = radius * 0.9;
     setfillcolor(COLOR_TRACK);
-    solidpie(x - trackRadius, y - trackRadius, x + trackRadius, y + trackRadius, radStart, radEnd);
+    solidpie(x - track_radius, y - track_radius, x + track_radius, y + track_radius, rad_start, rad_end);
 
-    // --- 第3层：数值条 ---
-    double ratio = (val - minVal) / (maxVal - minVal);
+    double ratio = (val - min_val) / (max_val - min_val);
     if (ratio < 0) ratio = 0;
     if (ratio > 1) ratio = 1;
 
-    double currentRadEnd = radStart + (ratio * 270 * PI / 180.0);
+    double current_rad_end = rad_start + (ratio * 270 * PI / 180.0);
 
     if (ratio > 0.01) {
-        setfillcolor(currentColor); // 使用同步的颜色
-        solidpie(x - trackRadius, y - trackRadius, x + trackRadius, y + trackRadius, radStart, currentRadEnd);
+        setfillcolor(current_color);
+        solidpie(x - track_radius, y - track_radius, x + track_radius, y + track_radius, rad_start, current_rad_end);
     }
 
-    // --- 第4层：中心盖板 ---
-    int innerRadius = radius * 0.7;
+    int inner_radius = radius * 0.7;
     setfillcolor(COLOR_GAUGE_FACE);
-    solidpie(x - innerRadius, y - innerRadius, x + innerRadius, y + innerRadius, 0, 2 * PI);
+    solidpie(x - inner_radius, y - inner_radius, x + inner_radius, y + inner_radius, 0, 2 * PI);
 
-    // --- 文字显示 ---
     TCHAR str[32];
     _stprintf_s(str, _T("%.0f"), val);
 
-    // 【核心修改1】数值颜色同步
-    settextcolor(currentColor);
+    settextcolor(current_color);
     settextstyle(32, 0, _T("Consolas"));
     int w = textwidth(str);
     outtextxy(x - w / 2, y - 15, str);
 
-    // 【核心修改2】标签颜色同步 (原为灰色，现改为随状态变化，或者保持白色)
-    // 如果你希望标签也变红，就用 currentColor；如果希望标签保持白色以便阅读，就用 COLOR_NORMAL。
-    // 根据"颜色同步"的要求，通常是指整个仪表盘变色，这里设为 currentColor。
     settextcolor(COLOR_NORMAL);
     settextstyle(18, 0, _T("微软雅黑"));
     w = textwidth(label.c_str());
     outtextxy(x - w / 2, y + 25, label.c_str());
 }
 
-void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hoverColor) {
+void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF hover_color) {
     setfillcolor(color);
-    setlinecolor(WHITE); // 边框
-    setlinestyle(PS_SOLID, 1); // 细线边框，看起来更精致
+    setlinecolor(WHITE);
+    setlinestyle(PS_SOLID, 1);
     fillrectangle(r.left, r.top, r.right, r.bottom);
     rectangle(r.left, r.top, r.right, r.bottom);
 
     settextcolor(WHITE);
-    // 动态调整字体：如果是故障按钮（高度较小），用小字体
     if (r.bottom - r.top < 40) {
         settextstyle(14, 0, _T("微软雅黑"));
     }
@@ -238,18 +198,16 @@ void UI::drawButton(RECT r, const std::wstring& text, COLORREF color, COLORREF h
     outtextxy(r.left + (r.right - r.left - w) / 2, r.top + (r.bottom - r.top - h) / 2, text.c_str());
 }
 
-void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool isValid) {
-    settextcolor(COLOR_TEXT); // 标签灰
+void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, const std::wstring& unit, bool is_valid) {
+    settextcolor(COLOR_TEXT);
     settextstyle(18, 0, _T("Consolas"));
     outtextxy(x, y, label.c_str());
 
-    // 如果无效，显示灰色的 "---"
-    if (!isValid) {
-        settextcolor(RGB(80, 80, 80)); // 与 drawGauge 的无效色保持一致
+    if (!is_valid) {
+        settextcolor(RGB(80, 80, 80));
         outtextxy(x + 100, y, _T("---"));
     }
     else {
-        // 正常显示数值
         TCHAR buf[64];
         _stprintf_s(buf, _T("%.1f %s"), value, unit.c_str());
         settextcolor(COLOR_NORMAL);
@@ -258,165 +216,139 @@ void UI::drawInfoBox(int x, int y, const std::wstring& label, double value, cons
 }
 
 void UI::draw(double time, const EngineData& data, EngineState state,
-    bool isRunningLightOn, double N1, double N2, const std::vector<ErrorType>& detectedErrors) {
+    bool is_running_light_on, double n1, double n2, const std::vector<ErrorType>& detected_errors) {
 
     setbkcolor(COLOR_BG);
     cleardevice();
 
-    // 标题
     settextcolor(WHITE);
     settextstyle(24, 0, _T("微软雅黑"));
     outtextxy(20, 20, _T("EICAS Display System"));
-    TCHAR timeBuf[32];
-    _stprintf_s(timeBuf, _T("T+ %.1f s"), time);
-    outtextxy(850, 20, timeBuf);
+    TCHAR time_buf[32];
+    _stprintf_s(time_buf, _T("T+ %.1f s"), time);
+    outtextxy(850, 20, time_buf);
 
-    // --- 1. 计算 N1 状态 (增加传感器有效性检查) ---
-    // 左发 N1 (索引 0, 1)
-    int statusN1_L = 0;
-    // 如果该发动机的两个传感器都坏了，则显示无效
-    if (!data.is_N_sensor_valid[0] && !data.is_N_sensor_valid[1]) {
-        statusN1_L = -1; // -1 代表显示 "---"
+    int status_n1_l = 0;
+    if (!data.is_n_sensor_valid[0] && !data.is_n_sensor_valid[1]) {
+        status_n1_l = -1;
     }
     else {
-        if (N1 > 120) statusN1_L = 2;
-        else if (N1 > 105) statusN1_L = 1;
-        else statusN1_L = 0;
+        if (n1 > 120) status_n1_l = 2;
+        else if (n1 > 105) status_n1_l = 1;
+        else status_n1_l = 0;
     }
 
-    // 右发 N1 (索引 2, 3)
-    int statusN1_R = 0;
-    if (!data.is_N_sensor_valid[2] && !data.is_N_sensor_valid[3]) {
-        statusN1_R = -1;
+    int status_n1_r = 0;
+    if (!data.is_n_sensor_valid[2] && !data.is_n_sensor_valid[3]) {
+        status_n1_r = -1;
     }
     else {
-        if (N2 > 120) statusN1_R = 2;
-        else if (N2 > 105) statusN1_R = 1;
-        else statusN1_R = 0;
+        if (n2 > 120) status_n1_r = 2;
+        else if (n2 > 105) status_n1_r = 1;
+        else status_n1_r = 0;
     }
 
-    // --- 2. 计算 EGT 状态 (增加传感器有效性检查) ---
-    // 左发 EGT (索引 0, 1)
-    int statusEGT_L = 0;
-    if (!data.is_EGT_sensor_valid[0] && !data.is_EGT_sensor_valid[1]) {
-        statusEGT_L = -1;
+    int status_egt_l = 0;
+    if (!data.is_egt_sensor_valid[0] && !data.is_egt_sensor_valid[1]) {
+        status_egt_l = -1;
     }
     else {
         if (state == EngineState::STARTING) {
-            if (data.EGT1_temp > 1000) statusEGT_L = 2;
-            else if (data.EGT1_temp > 850) statusEGT_L = 1;
+            if (data.egt1_temp > 1000) status_egt_l = 2;
+            else if (data.egt1_temp > 850) status_egt_l = 1;
         }
         else {
-            if (data.EGT1_temp > 1100) statusEGT_L = 2;
-            else if (data.EGT1_temp > 950) statusEGT_L = 1;
+            if (data.egt1_temp > 1100) status_egt_l = 2;
+            else if (data.egt1_temp > 950) status_egt_l = 1;
         }
     }
 
-    // 右发 EGT (索引 2, 3)
-    int statusEGT_R = 0;
-    if (!data.is_EGT_sensor_valid[2] && !data.is_EGT_sensor_valid[3]) {
-        statusEGT_R = -1;
+    int status_egt_r = 0;
+    if (!data.is_egt_sensor_valid[2] && !data.is_egt_sensor_valid[3]) {
+        status_egt_r = -1;
     }
     else {
         if (state == EngineState::STARTING) {
-            if (data.EGT2_temp > 1000) statusEGT_R = 2;
-            else if (data.EGT2_temp > 850) statusEGT_R = 1;
+            if (data.egt2_temp > 1000) status_egt_r = 2;
+            else if (data.egt2_temp > 850) status_egt_r = 1;
         }
         else {
-            if (data.EGT2_temp > 1100) statusEGT_R = 2;
-            else if (data.EGT2_temp > 950) statusEGT_R = 1;
+            if (data.egt2_temp > 1100) status_egt_r = 2;
+            else if (data.egt2_temp > 950) status_egt_r = 1;
         }
     }
 
-    // --- 3. 绘制仪表 ---
-    drawGauge(300, 200, 110, N1, 0, 125, _T("N1 % (L)"), statusN1_L);
-    drawGauge(724, 200, 110, N2, 0, 125, _T("N1 % (R)"), statusN1_R);
-    drawGauge(300, 420, 90, data.EGT1_temp, -5, 1200, _T("EGT °C (L)"), statusEGT_L);
-    drawGauge(724, 420, 90, data.EGT2_temp, -5, 1200, _T("EGT °C (R)"), statusEGT_R);
+    drawGauge(300, 200, 110, n1, 0, 125, _T("N1 % (L)"), status_n1_l);
+    drawGauge(724, 200, 110, n2, 0, 125, _T("N1 % (R)"), status_n1_r);
+    drawGauge(300, 420, 90, data.egt1_temp, -5, 1200, _T("EGT °C (L)"), status_egt_l);
+    drawGauge(724, 420, 90, data.egt2_temp, -5, 1200, _T("EGT °C (R)"), status_egt_r);
 
-    // --- 4. 绘制按钮 (保持不变) ---
     for (int i = 0; i < 14; i++) {
-        drawButton(faultButtons[i], faultLabels[i], COLOR_BTN_FAULT);
+        drawButton(fault_buttons[i], fault_labels[i], COLOR_BTN_FAULT);
     }
 
-    // --- 5. 绘制 EICAS 列表 (保持不变) ---
-    drawCASList(detectedErrors);
+    drawCASList(detected_errors);
 
-    // --- 6. 中央数据区 (修改燃油显示) ---
-    int infoX = 430;
-    int infoY = 250;
+    int info_x = 430;
+    int info_y = 250;
     setlinecolor(COLOR_GAUGE_FACE);
 
-    // 绘制 Fuel Flow (通常燃油故障主要指余量传感器，流速一般保持显示，除非题目特别说明)
-    drawInfoBox(infoX, infoY, _T("Fuel Flow"), data.Fuel_V, _T("kg/h"), true);
+    drawInfoBox(info_x, info_y, _T("Fuel Flow"), data.fuel_v, _T("kg/h"), true);
+    drawInfoBox(info_x, info_y + 30, _T("Fuel Qty"), data.fuel_c, _T("kg"), data.is_fuel_valid);
 
-    // 绘制 Fuel Qty (传入 is_Fuel_valid 标志)
-    drawInfoBox(infoX, infoY + 30, _T("Fuel Qty"), data.Fuel_C, _T("kg"), data.is_Fuel_valid);
-
-    // ... (状态灯和底部按钮代码保持不变) ...
-    bool isStart = (state == EngineState::STARTING);
-    setfillcolor(isStart ? COLOR_CAUTION : RGB(40, 40, 40));
-    solidcircle(infoX + 50, infoY + 80, 8);
-    settextcolor(isStart ? COLOR_CAUTION : RGB(100, 100, 100));
+    bool is_start = (state == EngineState::STARTING);
+    setfillcolor(is_start ? COLOR_CAUTION : RGB(40, 40, 40));
+    solidcircle(info_x + 50, info_y + 80, 8);
+    settextcolor(is_start ? COLOR_CAUTION : RGB(100, 100, 100));
     settextstyle(16, 0, _T("微软雅黑"));
-    outtextxy(infoX + 70, infoY + 70, _T("STARTING"));
+    outtextxy(info_x + 70, info_y + 70, _T("STARTING"));
 
-    setfillcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(40, 40, 40));
-    solidcircle(infoX + 50, infoY + 105, 8);
-    settextcolor(isRunningLightOn ? RGB(0, 255, 0) : RGB(100, 100, 100));
-    outtextxy(infoX + 70, infoY + 95, _T("RUNNING"));
+    setfillcolor(is_running_light_on ? RGB(0, 255, 0) : RGB(40, 40, 40));
+    solidcircle(info_x + 50, info_y + 105, 8);
+    settextcolor(is_running_light_on ? RGB(0, 255, 0) : RGB(100, 100, 100));
+    outtextxy(info_x + 70, info_y + 95, _T("RUNNING"));
 
-    drawButton(btnIncRect, _T("THRUST +"), COLOR_BTN_INC);
-    drawButton(btnDecRect, _T("THRUST -"), COLOR_BTN_DEC);
-    drawButton(btnStartRect, _T("ENGINE START"), COLOR_BTN_START);
-    drawButton(btnStopRect, _T("ENGINE STOP"), COLOR_BTN_STOP);
+    drawButton(btn_inc_rect, _T("THRUST +"), COLOR_BTN_INC);
+    drawButton(btn_dec_rect, _T("THRUST -"), COLOR_BTN_DEC);
+    drawButton(btn_start_rect, _T("ENGINE START"), COLOR_BTN_START);
+    drawButton(btn_stop_rect, _T("ENGINE STOP"), COLOR_BTN_STOP);
 
     FlushBatchDraw();
 }
 
-
-// 【重写】绘制多条 CAS 消息列表
 void UI::drawCASList(const std::vector<ErrorType>& errors) {
     if (errors.empty()) return;
 
-    // 起始位置：屏幕水平居中，垂直靠上 (位于两个 N1 表盘中间)
-    int startX = 362; // (1024 - 300) / 2
-    int startY = 80;  // 标题栏下方，避开仪表
-    int itemHeight = 35; // 每行高度
-    int boxWidth = 300;
+    int start_x = 362;
+    int start_y = 80;
+    int item_height = 35;
+    int box_width = 300;
 
-    settextstyle(22, 0, _T("Consolas")); // 稍微调小一点字体以容纳更多行
+    settextstyle(22, 0, _T("Consolas"));
 
-    // 遍历所有错误并绘制
     for (size_t i = 0; i < errors.size(); i++) {
         ErrorType err = errors[i];
         std::wstring msg = getErrorString(err);
         if (msg.empty()) continue;
 
-        // 获取颜色
         COLORREF color = getAlertColor(err);
+        int current_y = start_y + (int)i * item_height;
 
-        // 计算当前行的 Y 坐标
-        int currentY = startY + (int)i * itemHeight;
-
-        // 绘制背景条 (半透明黑色背景，增强可读性)
         setfillcolor(RGB(20, 20, 20));
-        setlinecolor(color); // 边框颜色代表报警等级
+        setlinecolor(color);
         setlinestyle(PS_SOLID, 2);
 
-        fillrectangle(startX, currentY, startX + boxWidth, currentY + itemHeight);
-        rectangle(startX, currentY, startX + boxWidth, currentY + itemHeight);
+        fillrectangle(start_x, current_y, start_x + box_width, current_y + item_height);
+        rectangle(start_x, current_y, start_x + box_width, current_y + item_height);
 
-        // 绘制文字
         settextcolor(color);
 
-        // 文字居中
-        int textW = textwidth(msg.c_str());
-        int textH = textheight(msg.c_str());
-        int textX = startX + (boxWidth - textW) / 2;
-        int textY = currentY + (itemHeight - textH) / 2;
+        int text_w = textwidth(msg.c_str());
+        int text_h = textheight(msg.c_str());
+        int text_x = start_x + (box_width - text_w) / 2;
+        int text_y = current_y + (item_height - text_h) / 2;
 
-        outtextxy(textX, textY, msg.c_str());
+        outtextxy(text_x, text_y, msg.c_str());
     }
 }
 
@@ -426,14 +358,14 @@ int UI::handleInput() {
         if (msg.message == WM_LBUTTONDOWN) {
             int x = msg.x;
             int y = msg.y;
-            auto isIn = [&](RECT r) { return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
-            if (isIn(btnStartRect)) return 1;
-            if (isIn(btnStopRect)) return 2;
-            if (isIn(btnIncRect)) return 3;
-            if (isIn(btnDecRect)) return 4;
+            auto is_in = [&](RECT r) { return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
+            if (is_in(btn_start_rect)) return 1;
+            if (is_in(btn_stop_rect)) return 2;
+            if (is_in(btn_inc_rect)) return 3;
+            if (is_in(btn_dec_rect)) return 4;
 
             for (int i = 0; i < 14; i++) {
-                if (isIn(faultButtons[i])) {
+                if (is_in(fault_buttons[i])) {
                     return 100 + i;
                 }
             }
